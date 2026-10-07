@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f7f4">
+  <title>Documentação | Consulta PCASP</title>
+  <style>
+    :root{--ink:#17322a;--green:#226b55;--muted:#687b71;--line:#dfe9e1;--paper:#fff;--bg:#f4f7f4;--soft:#eaf3ec;--gold:#d5a34c;--shadow:0 15px 40px #1c443012}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 "Segoe UI",Arial,sans-serif;-webkit-font-smoothing:antialiased}.layout{max-width:1160px;margin:auto;padding:0 28px}.topbar{height:76px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}.brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit}.mark{height:36px;width:36px;border-radius:11px;display:grid;place-items:center;background:var(--green);color:#fff;font-weight:800;font-size:19px}.brand-title{font-weight:800;letter-spacing:.12em;font-size:13px}.brand-sub{display:block;font-size:9px;letter-spacing:.12em;color:var(--muted);font-weight:700}.local{display:flex;align-items:center;gap:8px;font-size:11px;color:#557064;border:1px solid var(--line);border-radius:999px;background:#fff;padding:7px 12px}.dot{width:7px;height:7px;background:#52a77d;border-radius:50%;box-shadow:0 0 0 3px #e2f0e7}.hero{margin:30px 0 24px;padding:43px 48px;border-radius:20px;background:linear-gradient(120deg,#e4f0e6,#f6f8f4 72%);border:1px solid #dfebdf;position:relative;overflow:hidden}.hero:after{content:"";position:absolute;width:230px;height:230px;border:1px solid #c9ddce;border-radius:50%;right:70px;top:-80px;box-shadow:0 0 0 26px #ffffff22,0 0 0 52px #ffffff15}.eyebrow,.section-kicker{font-size:10px;text-transform:uppercase;letter-spacing:.15em;font-weight:800;color:var(--green);margin:0 0 8px}.hero h1{font-size:clamp(32px,5vw,48px);letter-spacing:-.045em;line-height:1.1;margin:0;max-width:700px}.hero h1 span{color:var(--green)}.hero p:last-child{max-width:690px;color:var(--muted);margin:15px 0 0}.content{display:grid;grid-template-columns:245px minmax(0,1fr);gap:22px;align-items:start}.nav,.doc-section{background:var(--paper);border:1px solid #e6ece7;border-radius:16px;box-shadow:var(--shadow)}.nav{position:sticky;top:18px;padding:20px}.nav h2{font:700 12px "Segoe UI",Arial,sans-serif;letter-spacing:.08em;margin:0 0 11px}.nav a{display:block;color:#596d62;text-decoration:none;font-size:12px;padding:7px 9px;border-radius:7px}.nav a:hover,.nav a:focus{background:var(--soft);color:var(--green);outline:0}.sections{display:grid;gap:14px}.doc-section{padding:27px 31px;scroll-margin-top:18px}.doc-section h2{font-size:20px;line-height:1.3;letter-spacing:-.025em;margin:0 0 12px}.doc-section h3{font-size:14px;margin:20px 0 7px}.doc-section p{margin:9px 0;color:#52665a}.doc-section ul,.doc-section ol{padding-left:21px;color:#52665a;margin:9px 0}.doc-section li{padding-left:3px;margin:5px 0}.note{border-left:3px solid var(--gold);background:#fbf8f0;padding:12px 15px;border-radius:0 8px 8px 0;color:#665938;font-size:13px;margin:15px 0}.tip{border-left:3px solid #68a485;background:#f0f6f1;padding:12px 15px;border-radius:0 8px 8px 0;color:#486354;font-size:13px;margin:15px 0}.tree{border:1px solid var(--line);background:#f8faf8;border-radius:10px;padding:16px 18px;overflow:auto;font:12px/1.8 Consolas,"Courier New",monospace;color:#425d4c}.code{display:block;overflow:auto;background:#18372d;color:#e4f2e7;border-radius:9px;padding:13px 16px;font:12px/1.6 Consolas,"Courier New",monospace;margin:12px 0}.pill{display:inline-block;background:var(--soft);border:1px solid #d8e8dc;border-radius:999px;padding:3px 9px;font-size:11px;color:#456b54;margin:2px}.footer{display:flex;justify-content:space-between;gap:15px;padding:22px 3px 35px;color:#8a9990;font-size:10px}.top-link{color:var(--green);font-size:11px;font-weight:700;text-decoration:none}.top-link:hover{text-decoration:underline}
+    @media(max-width:780px){.layout{padding:0 16px}.hero{padding:32px 24px}.hero:after{right:-120px}.content{grid-template-columns:1fr}.nav{position:static;padding:16px}.nav-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px}.doc-section{padding:23px 21px}.footer{flex-direction:column}.topbar{height:66px}}
+    @media print{body{background:#fff}.layout{max-width:none;padding:0}.topbar{height:58px}.hero,.nav,.doc-section{box-shadow:none}.content{display:block}.nav{display:none}.doc-section{break-inside:avoid;margin:10px 0}.hero:after,.local{display:none}.footer{padding-bottom:0}}
+  </style>
+</head>
+<body>
+  <div class="layout" id="topo">
+    <header class="topbar">
+      <a class="brand" href="#topo" aria-label="Consulta PCASP, início"><span class="mark">P</span><span><span class="brand-title">PCASP</span><span class="brand-sub">GUIA DO SISTEMA</span></span></a>
+      <span class="local"><span class="dot"></span> Documentação local</span>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow">GUIA DE USO E MANUTENÇÃO</p>
+      <h1>Consulta PCASP<br><span>Documentação do sistema</span></h1>
+      <p>Instruções para iniciar a aplicação, consultar contas, atualizar a planilha de referência e entender como as sugestões são formadas.</p>
+    </section>
+
+    <div class="content">
+      <nav class="nav" aria-label="Navegação da documentação">
+        <h2>NESTA PÁGINA</h2>
+        <div class="nav-links">
+          <a href="#visao-geral">Visão geral</a>
+          <a href="#requisitos">Requisitos</a>
+          <a href="#estrutura">Estrutura do projeto</a>
+          <a href="#vs-code">Abrir no VS Code</a>
+          <a href="#iniciar">Iniciar a aplicação</a>
+          <a href="#consultar">Consultar uma conta</a>
+          <a href="#atualizar">Atualizar a tabela</a>
+          <a href="#sugestoes">Como são as sugestões</a>
+          <a href="#limites">Limites e evolução</a>
+        </div>
+      </nav>
+
+      <main class="sections">
+        <section class="doc-section" id="visao-geral">
+          <p class="section-kicker">01 · Propósito</p>
+          <h2>Visão geral</h2>
+          <p>O <strong>Consulta PCASP</strong> é uma aplicação local para apoiar a consulta de contas do Plano de Contas Aplicado ao Setor Público (PCASP) do TCEMG. A pessoa informa a descrição de um bem móvel ou imóvel e recebe contas candidatas encontradas por palavras relacionadas ao título e à função das contas.</p>
+          <div class="note">As sugestões apoiam a consulta. Confira o título, a função, a natureza do saldo e os demais atributos antes de decidir a classificação.</div>
+          <p>Nesta versão, a aplicação funciona no computador onde foi iniciada. O acesso pela rede para várias pessoas fica para uma etapa futura.</p>
+        </section>
+
+        <section class="doc-section" id="requisitos">
+          <p class="section-kicker">02 · Preparação</p>
+          <h2>Requisitos</h2>
+          <ul><li>Windows;</li><li>Python 3.12 ou compatível;</li><li>navegador instalado;</li><li>VS Code, recomendado para desenvolvimento e manutenção.</li></ul>
+          <p>A aplicação usa bibliotecas incluídas no Python. Não é necessário instalar pacotes externos nem ter internet para executá-la.</p>
+        </section>
+
+        <section class="doc-section" id="estrutura">
+          <p class="section-kicker">03 · Organização</p>
+          <h2>Estrutura do projeto</h2>
+          <pre class="tree">PROJETO_PCASP_2026/
+├── .vscode/
+│   ├── launch.json             Iniciar pelo VS Code
+│   └── settings.json           Ambiente Python selecionado
+├── app/
+│   ├── config.py               Caminhos, host, porta e limite de upload
+│   ├── pcasp.py                Importação, banco local e busca
+│   ├── server.py               Servidor local e rotas HTTP
+│   ├── xlsx_reader.py          Leitura de arquivos .xlsx
+│   └── web/
+│       ├── app.js              Interações da interface
+│       ├── index.html          Página da aplicação
+│       └── style.css           Estilos da interface
+├── data/
+│   ├── PCASP_TCEMG-2026_v12.2.xlsx  Planilha inicial
+│   └── pcasp.sqlite3                Banco criado ao iniciar
+├── .venv/                      Ambiente virtual Python
+├── requirements.txt            Dependências externas (nenhuma)
+└── run.py                      Ponto de entrada</pre>
+          <p>O banco SQLite fica em <code>data/pcasp.sqlite3</code>. Ele guarda os dados preparados para a consulta; a planilha Excel original permanece como referência.</p>
+        </section>
+
+        <section class="doc-section" id="vs-code">
+          <p class="section-kicker">04 · Abrir o projeto</p>
+          <h2>Abrir no VS Code</h2>
+          <ol><li>Abra o VS Code.</li><li>Selecione <strong>Arquivo → Abrir Pasta…</strong>.</li><li>Escolha a pasta <code>PROJETO_PCASP_2026</code>.</li><li>Abra o terminal integrado em <strong>Terminal → Novo Terminal</strong>.</li></ol>
+          <p>A pasta <code>.vscode</code> já indica o ambiente virtual do projeto e inclui uma configuração de execução chamada <strong>Consulta PCASP (local)</strong>.</p>
+        </section>
+
+        <section class="doc-section" id="iniciar">
+          <p class="section-kicker">05 · Executar</p>
+          <h2>Iniciar a aplicação</h2>
+          <p>No terminal do VS Code, estando na pasta do projeto, execute:</p>
+          <code class="code">.\.venv\Scripts\python.exe run.py</code>
+          <p>Na primeira execução, o sistema carrega a planilha inicial no banco local e abre a aplicação no navegador:</p>
+          <code class="code">http://127.0.0.1:8765</code>
+          <p>Mantenha o terminal aberto enquanto utiliza o sistema. Para encerrar, volte ao terminal e pressione <strong>Ctrl+C</strong>. Como alternativa, use <strong>Executar e Depurar → Consulta PCASP (local)</strong>.</p>
+        </section>
+
+        <section class="doc-section" id="consultar">
+          <p class="section-kicker">06 · Consulta</p>
+          <h2>Consultar uma conta</h2>
+          <ol><li>Descreva o bem, por exemplo: <span class="pill">computador portátil</span> <span class="pill">cadeira de escritório</span> ou <span class="pill">terreno</span>.</li><li>Se quiser, selecione Móvel ou Imóvel para priorizar resultados que mencionem esse tipo. <strong>Não sei</strong> deixa a busca sem essa prioridade.</li><li>Clique em <strong>Buscar contas</strong>.</li><li>Confira o código, o título, a função e os atributos adicionais disponíveis.</li><li>Se necessário, tente outras palavras ou retire a priorização do tipo.</li></ol>
+        </section>
+
+        <section class="doc-section" id="atualizar">
+          <p class="section-kicker">07 · Importação</p>
+          <h2>Atualizar a tabela PCASP</h2>
+          <p>Na área <strong>Atualizar tabela PCASP</strong>, selecione um arquivo Excel <code>.xlsx</code>. O sistema lê a primeira aba e procura as colunas <code>CONTA</code>, <code>TÍTULO</code> e <code>FUNÇÃO</code>. Situação, natureza do saldo e outros campos são apresentados quando disponíveis na planilha.</p>
+          <ul><li>O limite atual é de 20 MB.</li><li>A tabela carregada só é substituída depois que a nova planilha passa pela validação e importação.</li><li>Se não houver uma planilha aceita, a aplicação informa o erro.</li></ul>
+          <p>Para recarregar a versão inicial, importe <code>data/PCASP_TCEMG-2026_v12.2.xlsx</code>.</p>
+        </section>
+
+        <section class="doc-section" id="sugestoes">
+          <p class="section-kicker">08 · Critério de busca</p>
+          <h2>Como são formadas as sugestões</h2>
+          <p>A busca ignora diferenças entre maiúsculas e minúsculas e acentos. Compara palavras digitadas com o código, o título e a função das contas, e ordena os resultados por coincidências textuais.</p>
+          <p>Alguns termos comuns têm equivalências de busca. Por exemplo, <code>computador</code> e <code>notebook</code> também procuram referências a equipamento de processamento de dados; <code>cadeira</code> e <code>mesa</code> procuram referências a mobiliário e móveis.</p>
+          <div class="tip">O tipo móvel/imóvel prioriza contas cujo título ou função menciona esse tipo, mas não exclui automaticamente as demais contas. A classificação final depende da conferência de quem usa o sistema.</div>
+        </section>
+
+        <section class="doc-section" id="limites">
+          <p class="section-kicker">09 · Evolução</p>
+          <h2>Limites e próximos passos possíveis</h2>
+          <ul><li>A busca textual pode não encontrar uma conta adequada quando há pouca coincidência de palavras.</li><li>A interface não registra os bens cadastrados nem a decisão final da pessoa usuária.</li><li>A análise de uma planilha de bens já cadastrados ainda não foi implementada.</li><li>O sistema atende apenas o computador onde está rodando. O acesso compartilhado pela rede será preparado em outra etapa, com controles de acesso apropriados.</li><li>O limite de upload pode ser aumentado caso surja a necessidade de importar planilhas maiores.</li></ul>
+          <p>Uma evolução possível é importar uma planilha de bens existentes e sinalizar registros que merecem revisão, mantendo as recomendações como alertas para análise humana.</p>
+          <a class="top-link" href="#topo">Voltar ao início ↑</a>
+        </section>
+      </main>
+    </div>
+
+    <footer class="footer"><span>Consulta PCASP · Documentação do sistema</span><span>Arquivo local · Pode ser aberto diretamente no navegador</span></footer>
+  </div>
+</body>
+</html>
