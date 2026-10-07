@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.py[cod]
+/data/pcasp.sqlite3
+/data/pcasp.sqlite3-shm
+/data/pcasp.sqlite3-wal

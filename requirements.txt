@@ -1,0 +1,1 @@
+# O leitor da planilha .xlsx e a aplicação usam apenas a biblioteca padrão do Python.

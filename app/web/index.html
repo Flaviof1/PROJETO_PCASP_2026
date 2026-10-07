@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f6f4">
+  <title>Consulta PCASP | TCEMG 2026</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Consulta PCASP início">
+        <span class="brand-mark">P</span>
+        <span class="brand-copy"><strong>PCASP</strong><small>CONSULTA DE CONTAS</small></span>
+      </a>
+      <div class="local-badge"><span class="online-dot"></span> Uso local</div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">PLANO DE CONTAS · TCEMG 2026</p>
+          <h1>Encontre a conta<br><span>mais adequada.</span></h1>
+          <p class="hero-description">Descreva o bem que deseja cadastrar. Consulte contas candidatas e confira seus detalhes antes de decidir.</p>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+          <div class="art-card"><span class="art-lines"></span><span class="art-check">✓</span></div>
+          <span class="art-star star-one">✳</span><span class="art-star star-two">✦</span>
+        </div>
+      </section>
+
+      <section class="search-panel" aria-labelledby="search-title">
+        <div class="panel-heading">
+          <div><span class="step-label">CONSULTA</span><h2 id="search-title">O que você vai cadastrar?</h2></div>
+          <span class="step-count">01 <i>/ 01</i></span>
+        </div>
+        <form id="search-form">
+          <label class="field-label" for="description">Descrição do bem</label>
+          <div class="search-row">
+            <div class="input-wrap"><span class="input-icon" aria-hidden="true">⌕</span><input id="description" name="description" maxlength="160" placeholder="Ex.: computador portátil, cadeira de escritório…" autocomplete="off" required><button class="clear-button" id="clear-search" type="button" aria-label="Limpar busca" hidden>×</button></div>
+            <button class="primary-button" type="submit"><span>Buscar contas</span><span aria-hidden="true">→</span></button>
+          </div>
+          <div class="filter-row">
+            <span class="filter-label">Tipo de bem <span>(prioriza resultados)</span></span>
+            <label class="radio-chip"><input type="radio" name="kind" value="" checked><span>Não sei</span></label>
+            <label class="radio-chip"><input type="radio" name="kind" value="movel"><span>Móvel</span></label>
+            <label class="radio-chip"><input type="radio" name="kind" value="imovel"><span>Imóvel</span></label>
+          </div>
+        </form>
+        <p class="privacy-note"><span aria-hidden="true">◉</span> A pesquisa acontece localmente neste computador.</p>
+      </section>
+
+      <section class="results-section" id="results-section" aria-live="polite" hidden>
+        <div class="results-heading"><div><span class="step-label">RESULTADOS</span><h2>Contas para conferir</h2></div><span class="result-count" id="result-count"></span></div>
+        <div class="results-list" id="results-list"></div>
+        <p class="results-disclaimer">As contas são sugestões encontradas por palavras relacionadas. Confira a função e os atributos antes de incluir o item.</p>
+      </section>
+
+      <section class="empty-state" id="empty-state" hidden>
+        <div class="empty-icon">⌕</div><h3>Nenhuma conta encontrada</h3><p>Tente descrever o bem com outras palavras ou remova o filtro de tipo.</p>
+      </section>
+
+      <section class="import-panel">
+        <div class="import-icon" aria-hidden="true">↥</div>
+        <div class="import-copy"><span class="step-label">BASE DE REFERÊNCIA</span><h2>Atualizar tabela PCASP</h2><p id="source-status">Carregando informações da tabela…</p></div>
+        <form id="upload-form" class="upload-form"><label class="secondary-button" for="workbook">Escolher Excel <span aria-hidden="true">↗</span></label><input id="workbook" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><span class="file-hint" id="file-hint">.xlsx até 20 MB</span></form>
+      </section>
+      <div class="toast" id="toast" role="status" hidden></div>
+    </main>
+
+    <footer><span>Consulta PCASP · TCEMG 2026</span><span>As sugestões apoiam a análise; a decisão é do usuário.</span></footer>
+  </div>
+</body>
+</html>
