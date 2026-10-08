@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import socket
 import threading
 import webbrowser
 from email import policy
@@ -39,15 +40,25 @@ class ApplicationHandler(BaseHTTPRequestHandler):
         if parsed.path == "/":
             self._static("index.html")
         elif parsed.path == "/api/status":
-            self._json(200, get_status())
+            status = get_status()
+            status["can_upload"] = self.client_address[0] in {"127.0.0.1", "::1"}
+            self._json(200, status)
         elif parsed.path == "/api/search":
             params = parse_qs(parsed.query)
             query = params.get("q", [""])[0].strip()
             kind = params.get("tipo", [""])[0].strip()
+            try:
+                limit = min(50, max(1, int(params.get("limit", ["15"])[0])))
+                offset = min(100000, max(0, int(params.get("offset", ["0"])[0])))
+            except ValueError:
+                self._json(400, {"error": "Parâmetros de paginação inválidos."})
+                return
             if len(query) > 160:
                 self._json(400, {"error": "Use uma descrição de até 160 caracteres."})
                 return
-            self._json(200, {"results": search_accounts(query, kind) if query else []})
+            results = search_accounts(query, kind, limit=limit + 1, offset=offset) if query else []
+            has_more = len(results) > limit
+            self._json(200, {"results": results[:limit], "has_more": has_more, "offset": offset})
         elif parsed.path.startswith("/static/"):
             name = parsed.path.removeprefix("/static/")
             if name not in {"style.css", "app.js"}:
@@ -60,6 +71,9 @@ class ApplicationHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         if urlparse(self.path).path != "/api/upload":
             self._json(404, {"error": "Rota não encontrada."})
+            return
+        if self.client_address[0] not in {"127.0.0.1", "::1"}:
+            self._json(403, {"error": "A atualização da tabela só pode ser feita no computador que hospeda o sistema."})
             return
         length = int(self.headers.get("Content-Length", "0"))
         if length <= 0 or length > MAX_UPLOAD_BYTES:
@@ -113,11 +127,19 @@ class ApplicationHandler(BaseHTTPRequestHandler):
 def main() -> None:
     ensure_initial_data(INITIAL_WORKBOOK)
     server = ThreadingHTTPServer((HOST, PORT), ApplicationHandler)
-    url = f"http://{HOST}:{PORT}"
+    local_url = f"http://127.0.0.1:{PORT}"
     print("Consulta PCASP iniciado neste computador.")
-    print(f"Abra no navegador: {url}")
+    print(f"Neste computador: {local_url}")
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect(("192.0.2.1", 80))
+            lan_ip = probe.getsockname()[0]
+        if lan_ip and not lan_ip.startswith("127."):
+            print(f"Outros computadores da mesma rede: http://{lan_ip}:{PORT}")
+    except OSError:
+        print("Não consegui identificar o IP da rede. Consulte o IPv4 com o comando ipconfig.")
     print("Para encerrar, volte a esta janela e pressione Ctrl+C.")
-    threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+    threading.Timer(0.8, lambda: webbrowser.open(local_url)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -6,7 +6,7 @@ O **Consulta PCASP** é uma aplicação local para apoiar a consulta de contas d
 
 As sugestões servem como apoio à consulta. A pessoa responsável deve conferir o título, a função, a natureza do saldo e os demais atributos antes de decidir a classificação.
 
-Nesta versão, a aplicação funciona neste computador e não fica disponível para outros computadores da rede. A organização modular permite evoluir o projeto, incluindo o acesso compartilhado em uma etapa futura.
+O computador principal executa a aplicação e outros computadores da mesma rede privada podem abrir a consulta pelo navegador. O acesso não exige hospedagem nem publicação na internet. O computador principal precisa permanecer ligado.
 
 ## 2. Requisitos
 
@@ -66,7 +66,15 @@ Na primeira execução, o sistema carrega a planilha inicial para o banco de dad
 http://127.0.0.1:8765
 ```
 
-Mantenha o terminal aberto enquanto usa a aplicação. Para encerrá-la, volte ao terminal e pressione **Ctrl+C**.
+O terminal também mostra o endereço com o IPv4 do computador principal para os demais dispositivos da rede. Mantenha-o aberto enquanto usa a aplicação. Para encerrar, pressione **Ctrl+C**.
+
+Se o Firewall do Windows bloquear o acesso, abra o PowerShell como administrador e execute uma regra limitada à rede privada e à sub-rede local:
+
+```powershell
+New-NetFirewallRule -DisplayName "Consulta PCASP (rede local)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8765 -Profile Private -RemoteAddress LocalSubnet
+```
+
+No outro computador, abra `http://<IPv4-do-computador-principal>:8765`, substituindo o trecho entre sinais de menor e maior pelo endereço mostrado no terminal. Os computadores precisam estar na mesma rede privada. No computador principal, use `127.0.0.1` para importar planilhas; os demais dispositivos podem consultar e comparar contas, mas não substituir a tabela PCASP.
 
 Também é possível iniciar pelo menu **Executar e Depurar** do VS Code, selecionando **Consulta PCASP (local)**.
 
@@ -75,13 +83,17 @@ Também é possível iniciar pelo menu **Executar e Depurar** do VS Code, seleci
 1. Digite uma descrição do bem no campo **Descrição do bem**. Exemplos: `computador portátil`, `cadeira de escritório` ou `terreno`.
 2. Opcionalmente, selecione **Móvel** ou **Imóvel** para priorizar contas cujo texto menciona esse tipo. A opção **Não sei** deixa a busca sem essa priorização.
 3. Clique em **Buscar contas**.
-4. Confira as contas candidatas. Cada resultado pode mostrar:
+4. Confira as contas candidatas. A busca exibe 15 resultados por vez; use **Carregar mais sugestões** para avançar. Cada resultado pode mostrar:
    - código da conta;
    - título;
    - função;
    - natureza do saldo e situação, quando preenchidas;
+   - motivo pelo qual apareceu na busca;
+   - hierarquia PCASP com os títulos das contas superiores;
    - atributos e outras informações da planilha, quando disponíveis.
 5. Se necessário, tente outra descrição ou retire a priorização do tipo.
+
+Use **Adicionar à comparação** para selecionar até três contas. A barra de comparação permite retirar contas selecionadas ou abrir uma tabela lado a lado com código, título, hierarquia, função, situação, natureza do saldo e atributos disponíveis.
 
 ## 7. Atualizar a tabela PCASP
 
@@ -93,7 +105,7 @@ Para usar novamente a versão inicial, importe a planilha `data/PCASP_TCEMG-2026
 
 ## 8. Como as sugestões são formadas
 
-A busca normaliza maiúsculas e acentos e compara os termos digitados com o código, o título e a função das contas. Alguns termos comuns de bens têm equivalências de busca, como `computador` e `notebook` relacionados a `equipamento`, `processamento` e `dados`, ou `cadeira` e `mesa` relacionados a `mobiliário` e `móveis`.
+A busca normaliza maiúsculas e acentos e compara os termos digitados com o código, o título e a função das contas. Cada sugestão mostra os motivos textuais da correspondência. Alguns termos comuns de bens têm equivalências de busca, como `computador` e `notebook` relacionados a `equipamento`, `processamento` e `dados`, ou `cadeira` e `mesa` relacionados a `mobiliário` e `móveis`.
 
 Os resultados são ordenados por coincidências textuais. A opção móvel/imóvel dá prioridade a contas cujo título ou função contém referências a esse tipo, mas não exclui automaticamente as demais contas. O sistema não compreende o contexto completo da aquisição nem confirma se uma conta é correta.
 
@@ -102,7 +114,7 @@ Os resultados são ordenados por coincidências textuais. A opção móvel/imóv
 - A busca é lexical e depende dos termos existentes na descrição e na tabela; ela pode não encontrar uma conta adequada quando há pouca coincidência de palavras.
 - A interface não registra o bem cadastrado nem a decisão final de classificação.
 - Ainda não existe análise de uma planilha com bens já cadastrados.
-- A aplicação atende apenas o computador onde foi iniciada. Para uso compartilhado pela rede, será necessário configurar acesso e controles de segurança.
+- A função de importação da planilha está restrita ao computador principal; os demais dispositivos têm acesso de consulta.
 - O limite de arquivo de 20 MB pode ser ajustado se houver necessidade de importar planilhas maiores.
 
 Uma evolução possível é permitir importar uma planilha de bens existentes e apontar registros que mereçam revisão, mantendo as recomendações como alertas para conferência humana.

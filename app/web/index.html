@@ -15,7 +15,7 @@
         <span class="brand-mark">P</span>
         <span class="brand-copy"><strong>PCASP</strong><small>CONSULTA DE CONTAS</small></span>
       </a>
-      <div class="local-badge"><span class="online-dot"></span> Uso local</div>
+      <div class="local-badge"><span class="online-dot"></span> <span id="access-mode">Uso local</span></div>
     </header>
 
     <main>
@@ -56,12 +56,24 @@
       <section class="results-section" id="results-section" aria-live="polite" hidden>
         <div class="results-heading"><div><span class="step-label">RESULTADOS</span><h2>Contas para conferir</h2></div><span class="result-count" id="result-count"></span></div>
         <div class="results-list" id="results-list"></div>
+        <div class="more-results" id="more-results" hidden><button id="load-more" class="secondary-button" type="button">Carregar mais sugestões</button></div>
         <p class="results-disclaimer">As contas são sugestões encontradas por palavras relacionadas. Confira a função e os atributos antes de incluir o item.</p>
       </section>
 
       <section class="empty-state" id="empty-state" hidden>
         <div class="empty-icon">⌕</div><h3>Nenhuma conta encontrada</h3><p>Tente descrever o bem com outras palavras ou remova o filtro de tipo.</p>
       </section>
+
+      <section class="compare-dock" id="compare-dock" aria-live="polite" hidden>
+        <div class="compare-dock-info"><strong>Comparação de contas</strong><div id="compare-tags" class="compare-tags"></div></div>
+        <div class="compare-dock-actions"><button id="compare-clear" type="button" class="text-button">Limpar</button><button id="compare-open" type="button" class="primary-button">Comparar contas</button></div>
+      </section>
+
+      <dialog id="comparison-dialog" class="comparison-dialog" aria-labelledby="comparison-title">
+        <div class="dialog-head"><div><span class="step-label">ANÁLISE LADO A LADO</span><h2 id="comparison-title">Compare as contas</h2></div><button id="close-comparison" class="dialog-close" type="button" aria-label="Fechar comparação">×</button></div>
+        <div class="compare-table-wrap"><table id="compare-table" class="compare-table"></table></div>
+        <p class="comparison-note">Os campos refletem a tabela PCASP importada. A comparação organiza informações para conferência e não determina automaticamente a conta correta.</p>
+      </dialog>
 
       <section class="import-panel">
         <div class="import-icon" aria-hidden="true">↥</div>

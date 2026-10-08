@@ -8,6 +8,7 @@ import sqlite3
 import unicodedata
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from app.config import DATABASE_PATH, DATA_DIR
 from app.xlsx_reader import SpreadsheetError, iter_first_sheet
@@ -144,7 +145,41 @@ def get_status() -> dict[str, str | int]:
         connection.close()
 
 
-def search_accounts(query: str, kind: str = "") -> list[dict[str, str | int]]:
+def _add_hierarchy(connection: sqlite3.Connection, results: list[dict[str, Any]]) -> None:
+    levels = ("Classe", "Grupo", "Subgrupo", "Título", "Subtítulo", "Item", "Subitem")
+    codes_by_account: dict[str, list[tuple[str, str]]] = {}
+    codes: set[str] = set()
+    for account in results:
+        parts = str(account["code"]).split(".")
+        ancestors: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for index, level in enumerate(levels[: min(len(parts), len(levels))]):
+            suffix = ["0" if slot < 5 else "00" for slot in range(index + 1, len(levels))]
+            parent_code = ".".join(parts[: index + 1] + suffix)
+            if parent_code not in seen:
+                ancestors.append((level, parent_code))
+                codes.add(parent_code)
+                seen.add(parent_code)
+        codes_by_account[str(account["code"])] = ancestors
+
+    if not codes:
+        return
+    placeholders = ",".join("?" for _ in codes)
+    titles = {
+        row["code"]: row["title"]
+        for row in connection.execute(
+            f"SELECT code, title FROM accounts WHERE code IN ({placeholders})", tuple(codes)
+        )
+    }
+    for account in results:
+        account["hierarchy"] = [
+            {"level": level, "code": code, "title": titles[code]}
+            for level, code in codes_by_account[str(account["code"])]
+            if code in titles
+        ]
+
+
+def search_accounts(query: str, kind: str = "", limit: int = 15, offset: int = 0) -> list[dict[str, Any]]:
     connection = connect()
     try:
         records = connection.execute(
@@ -181,8 +216,9 @@ def search_accounts(query: str, kind: str = "") -> list[dict[str, str | int]]:
     query_terms = [term for term in re.findall(r"[\w]+", _key(query)) if len(term) > 1 and term not in stopwords]
     terms = list(dict.fromkeys(query_terms + [alias for term in query_terms for alias in aliases.get(term, ())]))
     query_code = query.strip().casefold()
+    query_digits = re.sub(r"\D", "", query)
     kind_words = {"movel": ("bem movel", "bens moveis"), "imovel": ("bem imovel", "bens imoveis")}.get(kind, ())
-    results: list[tuple[int, dict[str, str | int]]] = []
+    results: list[tuple[int, dict[str, Any]]] = []
     for record in records:
         code = record["code"]
         title = record["title"]
@@ -194,8 +230,11 @@ def search_accounts(query: str, kind: str = "") -> list[dict[str, str | int]]:
         normalized_function = _key(function)
         searchable = f"{normalized_title} {normalized_function} {_key(code)}"
         score = 0
-        if query_code and query_code == code.casefold():
+        reasons: list[str] = []
+        exact_code_match = bool(query_digits) and query_digits == re.sub(r"\D", "", code)
+        if (query_code and query_code == code.casefold()) or exact_code_match:
             score += 100
+            reasons.append("O código da conta corresponde exatamente à busca, com ou sem pontuação.")
         for term in terms:
             if term in normalized_title:
                 score += 7 if normalized_title.startswith(term) else 5
@@ -203,12 +242,31 @@ def search_accounts(query: str, kind: str = "") -> list[dict[str, str | int]]:
                 score += 2
             if term in _key(code):
                 score += 3
+        for term in query_terms:
+            if term in normalized_title:
+                reasons.append(f'O título contém “{term}”.')
+            if term in normalized_function:
+                reasons.append(f'A função contém “{term}”.')
+            related_matches = [
+                alias for alias in aliases.get(term, ())
+                if alias in normalized_title or alias in normalized_function
+            ]
+            if related_matches:
+                reasons.append(f'O termo “{term}” encontrou termos relacionados: {", ".join(related_matches)}.')
         matched_terms = sum(1 for term in terms if term in searchable)
-        if not terms or not score or (terms and matched_terms == 0):
+        if not terms or not score or (terms and matched_terms == 0 and not exact_code_match):
             continue
         if kind_words and any(phrase in searchable for phrase in kind_words):
             score += 4
         result = dict(record)
+        result["match_reasons"] = reasons or ["A conta corresponde aos termos relacionados encontrados na busca."]
         results.append((score, result))
     results.sort(key=lambda item: (-item[0], str(item[1]["code"])))
-    return [dict(score=score, **result) for score, result in results[:15]]
+    start = max(0, offset)
+    selected = [dict(score=score, **result) for score, result in results[start : start + max(1, limit)]]
+    connection = connect()
+    try:
+        _add_hierarchy(connection, selected)
+    finally:
+        connection.close()
+    return selected

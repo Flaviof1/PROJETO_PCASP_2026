@@ -47,7 +47,7 @@
           <h2>Visão geral</h2>
           <p>O <strong>Consulta PCASP</strong> é uma aplicação local para apoiar a consulta de contas do Plano de Contas Aplicado ao Setor Público (PCASP) do TCEMG. A pessoa informa a descrição de um bem móvel ou imóvel e recebe contas candidatas encontradas por palavras relacionadas ao título e à função das contas.</p>
           <div class="note">As sugestões apoiam a consulta. Confira o título, a função, a natureza do saldo e os demais atributos antes de decidir a classificação.</div>
-          <p>Nesta versão, a aplicação funciona no computador onde foi iniciada. O acesso pela rede para várias pessoas fica para uma etapa futura.</p>
+          <p>O computador principal executa a aplicação e outros computadores da mesma rede privada podem abrir a consulta pelo navegador. Não é necessário contratar hospedagem nem publicar o sistema na internet. O computador principal precisa permanecer ligado.</p>
         </section>
 
         <section class="doc-section" id="requisitos">
@@ -96,13 +96,22 @@
           <code class="code">.\.venv\Scripts\python.exe run.py</code>
           <p>Na primeira execução, o sistema carrega a planilha inicial no banco local e abre a aplicação no navegador:</p>
           <code class="code">http://127.0.0.1:8765</code>
-          <p>Mantenha o terminal aberto enquanto utiliza o sistema. Para encerrar, volte ao terminal e pressione <strong>Ctrl+C</strong>. Como alternativa, use <strong>Executar e Depurar → Consulta PCASP (local)</strong>.</p>
+          <p>O terminal também mostra o endereço IPv4 do computador principal para os outros dispositivos. Mantenha-o aberto enquanto usa a aplicação. Para encerrar, volte ao terminal e pressione <strong>Ctrl+C</strong>. Como alternativa, use <strong>Executar e Depurar → Consulta PCASP (local)</strong>.</p>
+        </section>
+
+        <section class="doc-section" id="rede">
+          <p class="section-kicker">05A · Rede local</p>
+          <h2>Acessar de outro computador</h2>
+          <ol><li>Inicie o sistema no computador principal e mantenha-o ligado.</li><li>Copie do terminal o endereço de rede exibido, no formato <code>http://192.168.x.x:8765</code>.</li><li>No outro computador, abra esse endereço no navegador. Os equipamentos devem estar na mesma rede privada.</li><li>No computador principal, use <code>http://127.0.0.1:8765</code> para importar ou atualizar a tabela.</li></ol>
+          <p>Se o Firewall do Windows bloquear conexões, abra o PowerShell como administrador e execute a regra abaixo. Ela permite a porta 8765 apenas no perfil de rede privada e para a sub-rede local:</p>
+          <code class="code">New-NetFirewallRule -DisplayName "Consulta PCASP (rede local)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8765 -Profile Private -RemoteAddress LocalSubnet</code>
+          <div class="note">Outros computadores podem consultar e comparar contas. A importação da planilha está restrita ao computador principal para impedir que alguém da rede substitua a base de referência.</div>
         </section>
 
         <section class="doc-section" id="consultar">
           <p class="section-kicker">06 · Consulta</p>
           <h2>Consultar uma conta</h2>
-          <ol><li>Descreva o bem, por exemplo: <span class="pill">computador portátil</span> <span class="pill">cadeira de escritório</span> ou <span class="pill">terreno</span>.</li><li>Se quiser, selecione Móvel ou Imóvel para priorizar resultados que mencionem esse tipo. <strong>Não sei</strong> deixa a busca sem essa prioridade.</li><li>Clique em <strong>Buscar contas</strong>.</li><li>Confira o código, o título, a função e os atributos adicionais disponíveis.</li><li>Se necessário, tente outras palavras ou retire a priorização do tipo.</li></ol>
+          <ol><li>Descreva o bem, por exemplo: <span class="pill">computador portátil</span> <span class="pill">cadeira de escritório</span> ou <span class="pill">terreno</span>.</li><li>Se quiser, selecione Móvel ou Imóvel para priorizar resultados que mencionem esse tipo. <strong>Não sei</strong> deixa a busca sem essa prioridade.</li><li>Clique em <strong>Buscar contas</strong>.</li><li>Confira o código, o título, a função, os motivos da sugestão, a hierarquia PCASP e os atributos adicionais disponíveis. São exibidos 15 resultados por vez; use <strong>Carregar mais sugestões</strong> para ver os próximos.</li><li>Use <strong>Adicionar à comparação</strong> para selecionar até três contas e ver os campos lado a lado.</li><li>Se necessário, tente outras palavras ou retire a priorização do tipo.</li></ol>
         </section>
 
         <section class="doc-section" id="atualizar">
@@ -116,7 +125,7 @@
         <section class="doc-section" id="sugestoes">
           <p class="section-kicker">08 · Critério de busca</p>
           <h2>Como são formadas as sugestões</h2>
-          <p>A busca ignora diferenças entre maiúsculas e minúsculas e acentos. Compara palavras digitadas com o código, o título e a função das contas, e ordena os resultados por coincidências textuais.</p>
+          <p>A busca ignora diferenças entre maiúsculas e minúsculas e acentos. Compara palavras digitadas com o código, o título e a função das contas, e ordena os resultados por coincidências textuais. Cada sugestão apresenta os termos que coincidiram no título ou na função.</p>
           <p>Alguns termos comuns têm equivalências de busca. Por exemplo, <code>computador</code> e <code>notebook</code> também procuram referências a equipamento de processamento de dados; <code>cadeira</code> e <code>mesa</code> procuram referências a mobiliário e móveis.</p>
           <div class="tip">O tipo móvel/imóvel prioriza contas cujo título ou função menciona esse tipo, mas não exclui automaticamente as demais contas. A classificação final depende da conferência de quem usa o sistema.</div>
         </section>
@@ -124,7 +133,7 @@
         <section class="doc-section" id="limites">
           <p class="section-kicker">09 · Evolução</p>
           <h2>Limites e próximos passos possíveis</h2>
-          <ul><li>A busca textual pode não encontrar uma conta adequada quando há pouca coincidência de palavras.</li><li>A interface não registra os bens cadastrados nem a decisão final da pessoa usuária.</li><li>A análise de uma planilha de bens já cadastrados ainda não foi implementada.</li><li>O sistema atende apenas o computador onde está rodando. O acesso compartilhado pela rede será preparado em outra etapa, com controles de acesso apropriados.</li><li>O limite de upload pode ser aumentado caso surja a necessidade de importar planilhas maiores.</li></ul>
+          <ul><li>A busca textual pode não encontrar uma conta adequada quando há pouca coincidência de palavras.</li><li>A interface não registra os bens cadastrados nem a decisão final da pessoa usuária.</li><li>A análise de uma planilha de bens já cadastrados ainda não foi implementada.</li><li>A aplicação compartilha consultas apenas na rede privada; o computador que hospeda o sistema precisa ficar ligado.</li><li>O limite de upload pode ser aumentado caso surja a necessidade de importar planilhas maiores.</li></ul>
           <p>Uma evolução possível é importar uma planilha de bens existentes e sinalizar registros que merecem revisão, mantendo as recomendações como alertas para análise humana.</p>
           <a class="top-link" href="#topo">Voltar ao início ↑</a>
         </section>
