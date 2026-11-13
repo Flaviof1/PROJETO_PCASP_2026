@@ -22,7 +22,7 @@
     <section class="hero">
       <p class="eyebrow">GUIA DE USO E MANUTENÇÃO</p>
       <h1>Consulta PCASP<br><span>Documentação do sistema</span></h1>
-      <p>Instruções para iniciar a aplicação, consultar contas, atualizar a planilha de referência e entender como as sugestões são formadas.</p>
+      <p>Guia para iniciar a aplicação, consultar contas, comparar relatórios e revisar sugestões com aprovação humana, preservando o arquivo original.</p>
     </section>
 
     <div class="content">
@@ -31,13 +31,17 @@
         <div class="nav-links">
           <a href="#visao-geral">Visão geral</a>
           <a href="#requisitos">Requisitos</a>
-          <a href="#estrutura">Estrutura do projeto</a>
           <a href="#vs-code">Abrir no VS Code</a>
-          <a href="#iniciar">Iniciar a aplicação</a>
-          <a href="#consultar">Consultar uma conta</a>
-          <a href="#atualizar">Atualizar a tabela</a>
+          <a href="#iniciar">Iniciar</a>
+          <a href="#rede">Acesso pela rede local</a>
+          <a href="#consultar">Consultar contas</a>
+          <a href="#comparar">Comparar relatórios</a>
+          <a href="#revisar">Revisar e aprovar</a>
+          <a href="#atualizar">Atualizar tabela PCASP</a>
           <a href="#sugestoes">Como são as sugestões</a>
-          <a href="#limites">Limites e evolução</a>
+          <a href="#limites">Limites e cuidados</a>
+          <a href="#passo-a-passo">Passo a passo do funcionamento</a>
+          <a href="#estrutura">Estrutura do projeto</a>
         </div>
       </nav>
 
@@ -45,9 +49,9 @@
         <section class="doc-section" id="visao-geral">
           <p class="section-kicker">01 · Propósito</p>
           <h2>Visão geral</h2>
-          <p>O <strong>Consulta PCASP</strong> é uma aplicação local para apoiar a consulta de contas do Plano de Contas Aplicado ao Setor Público (PCASP) do TCEMG. A pessoa informa a descrição de um bem móvel ou imóvel e recebe contas candidatas encontradas por palavras relacionadas ao título e à função das contas.</p>
-          <div class="note">As sugestões apoiam a consulta. Confira o título, a função, a natureza do saldo e os demais atributos antes de decidir a classificação.</div>
-          <p>O computador principal executa a aplicação e outros computadores da mesma rede privada podem abrir a consulta pelo navegador. Não é necessário contratar hospedagem nem publicar o sistema na internet. O computador principal precisa permanecer ligado.</p>
+          <p>O <strong>Consulta PCASP</strong> ajuda a consultar contas PCASP/TCEMG e organizar uma análise documentada de bens patrimoniais para embasar uma futura mudança no sistema principal SH3/Siap. A tabela usada pela busca e pelas sugestões é uma planilha Excel <code>.xlsx</code> carregada no sistema. A aplicação não se conecta ao SH3/Siap nem altera seu cadastro.</p>
+          <div class="note">As sugestões são indicações para análise humana. O sistema não confirma erro contábil nem substitui a decisão da pessoa responsável.</div>
+          <p>O computador principal executa a aplicação. Outros dispositivos da mesma rede privada podem usar a consulta de contas pelo navegador.</p>
         </section>
 
         <section class="doc-section" id="requisitos">
@@ -57,55 +61,30 @@
           <p>A aplicação usa bibliotecas incluídas no Python. Não é necessário instalar pacotes externos nem ter internet para executá-la.</p>
         </section>
 
-        <section class="doc-section" id="estrutura">
-          <p class="section-kicker">03 · Organização</p>
-          <h2>Estrutura do projeto</h2>
-          <pre class="tree">PROJETO_PCASP_2026/
-├── .vscode/
-│   ├── launch.json             Iniciar pelo VS Code
-│   └── settings.json           Ambiente Python selecionado
-├── app/
-│   ├── config.py               Caminhos, host, porta e limite de upload
-│   ├── pcasp.py                Importação, banco local e busca
-│   ├── server.py               Servidor local e rotas HTTP
-│   ├── xlsx_reader.py          Leitura de arquivos .xlsx
-│   └── web/
-│       ├── app.js              Interações da interface
-│       ├── index.html          Página da aplicação
-│       └── style.css           Estilos da interface
-├── data/
-│   ├── PCASP_TCEMG-2026_v12.2.xlsx  Planilha inicial
-│   └── pcasp.sqlite3                Banco criado ao iniciar
-├── .venv/                      Ambiente virtual Python
-├── requirements.txt            Dependências externas (nenhuma)
-└── run.py                      Ponto de entrada</pre>
-          <p>O banco SQLite fica em <code>data/pcasp.sqlite3</code>. Ele guarda os dados preparados para a consulta; a planilha Excel original permanece como referência.</p>
-        </section>
-
         <section class="doc-section" id="vs-code">
-          <p class="section-kicker">04 · Abrir o projeto</p>
+          <p class="section-kicker">03 · Abrir o projeto</p>
           <h2>Abrir no VS Code</h2>
           <ol><li>Abra o VS Code.</li><li>Selecione <strong>Arquivo → Abrir Pasta…</strong>.</li><li>Escolha a pasta <code>PROJETO_PCASP_2026</code>.</li><li>Abra o terminal integrado em <strong>Terminal → Novo Terminal</strong>.</li></ol>
           <p>A pasta <code>.vscode</code> já indica o ambiente virtual do projeto e inclui uma configuração de execução chamada <strong>Consulta PCASP (local)</strong>.</p>
         </section>
 
         <section class="doc-section" id="iniciar">
-          <p class="section-kicker">05 · Executar</p>
+          <p class="section-kicker">04 · Executar</p>
           <h2>Iniciar a aplicação</h2>
           <p>No terminal do VS Code, estando na pasta do projeto, execute:</p>
           <code class="code">.\.venv\Scripts\python.exe run.py</code>
           <p>Na primeira execução, o sistema carrega a planilha inicial no banco local e abre a aplicação no navegador:</p>
           <code class="code">http://127.0.0.1:8765</code>
-          <p>O terminal também mostra o endereço IPv4 do computador principal para os outros dispositivos. Mantenha-o aberto enquanto usa a aplicação. Para encerrar, volte ao terminal e pressione <strong>Ctrl+C</strong>. Como alternativa, use <strong>Executar e Depurar → Consulta PCASP (local)</strong>.</p>
+          <p>O terminal também mostra o endereço IPv4 do computador principal. Mantenha-o aberto enquanto usa a aplicação. Para encerrar, volte ao terminal e pressione <strong>Ctrl+C</strong>. Como alternativa, use <strong>Executar e Depurar → Consulta PCASP (local)</strong>.</p>
         </section>
 
         <section class="doc-section" id="rede">
-          <p class="section-kicker">05A · Rede local</p>
+          <p class="section-kicker">05 · Rede local</p>
           <h2>Acessar de outro computador</h2>
           <ol><li>Inicie o sistema no computador principal e mantenha-o ligado.</li><li>Copie do terminal o endereço de rede exibido, no formato <code>http://192.168.x.x:8765</code>.</li><li>No outro computador, abra esse endereço no navegador. Os equipamentos devem estar na mesma rede privada.</li><li>No computador principal, use <code>http://127.0.0.1:8765</code> para importar ou atualizar a tabela.</li></ol>
           <p>Se o Firewall do Windows bloquear conexões, abra o PowerShell como administrador e execute a regra abaixo. Ela permite a porta 8765 apenas no perfil de rede privada e para a sub-rede local:</p>
           <code class="code">New-NetFirewallRule -DisplayName "Consulta PCASP (rede local)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8765 -Profile Private -RemoteAddress LocalSubnet</code>
-          <div class="note">Outros computadores podem consultar e comparar contas. A importação da planilha está restrita ao computador principal para impedir que alguém da rede substitua a base de referência.</div>
+          <div class="note">Pela rede, os outros computadores podem consultar contas. A importação e as análises de arquivos ficam no computador principal. O sistema foi preparado para rede privada; não encaminhe a porta 8765 diretamente para a internet.</div>
         </section>
 
         <section class="doc-section" id="consultar">
@@ -114,8 +93,28 @@
           <ol><li>Descreva o bem, por exemplo: <span class="pill">computador portátil</span> <span class="pill">cadeira de escritório</span> ou <span class="pill">terreno</span>.</li><li>Se quiser, selecione Móvel ou Imóvel para priorizar resultados que mencionem esse tipo. <strong>Não sei</strong> deixa a busca sem essa prioridade.</li><li>Clique em <strong>Buscar contas</strong>.</li><li>Confira o código, o título, a função, os motivos da sugestão, a hierarquia PCASP e os atributos adicionais disponíveis. São exibidos 15 resultados por vez; use <strong>Carregar mais sugestões</strong> para ver os próximos.</li><li>Use <strong>Adicionar à comparação</strong> para selecionar até três contas e ver os campos lado a lado.</li><li>Se necessário, tente outras palavras ou retire a priorização do tipo.</li></ol>
         </section>
 
+        <section class="doc-section" id="comparar">
+          <p class="section-kicker">07 · Conferência de saldos</p>
+          <h2>Comparar inventário e relatório PCASP</h2>
+          <p>Na seção <strong>Comparar inventário com relatório PCASP</strong>, envie o CSV <strong>Localizar Bens</strong> e o TXT <strong>PCASP - Inventário Ativo</strong>. Esse TXT é o relatório com saldos e movimentações — não é a tabela PCASP de referência. O sistema soma <code>Valor Atual</code> por <code>Conta Bem</code> e compara com o <code>Saldo Final</code> por conta.</p>
+          <p>Diferenças e contas sem correspondência aparecem para conferência. Podem decorrer de datas-base ou critérios contábeis diferentes; não significam automaticamente erro. Essa análise não altera os arquivos.</p>
+        </section>
+
+        <section class="doc-section" id="revisar">
+          <p class="section-kicker">08 · Revisão com aprovação</p>
+          <h2>Revisar sugestões por bem</h2>
+          <p>As candidatas vêm da tabela PCASP Excel <code>.xlsx</code> já carregada e são confrontadas com a relação completa de contas do SH3/Siap <code>Localizar Plano de Contas.csv</code>. A relação do SH3 é necessária para iniciar a revisão.</p>
+          <ol><li>Envie o CSV <strong>Localizar Bens</strong> e a relação <strong>Localizar Plano de Contas.csv</strong> em <strong>Quais bens e contas devo conferir?</strong>.</li><li>Filtre por descrição, plaqueta ou conta e clique em <strong>Analisar</strong>.</li><li>Confira descrição, características patrimoniais, conta atual e candidatas PCASP, incluindo título, função, natureza, motivo e disponibilidade no SH3.</li><li>Aprove somente uma conta marcada <strong>Cadastrada no SH3/Siap</strong>. As ausentes são indicadas para consulta/inclusão junto à SH3 e não podem ser aprovadas.</li><li>Baixe a cópia com as aprovações e, se necessário, o resumo final por conta.</li></ol>
+          <div class="tip">A tela orienta localizar o bem pela plaqueta e conferir o campo <strong>Conta Bem</strong>. Não altera diretamente o SH3/Siap. Somente as aprovações entram no novo CSV; o original não é sobrescrito.</div>
+          <p><strong>Baixar resumo Excel</strong> gera um comparativo por conta com os totais antes e depois das aprovações e a variação, somando <code>Valor Atual</code>. A aba <strong>Itens alterados</strong> identifica cada bem aprovado por plaqueta, código, descrição, conta anterior, conta nova e valor individual. A relação SH3 converte códigos internos, como <code>00713</code>, para as contas patrimoniais correspondentes. Bens sem correspondência são excluídos dos totais finais e listados para conferência.</p>
+          <p>A planilha tem cabeçalho destacado, valores em moeda, filtro por conta, cabeçalho congelado ao rolar a tela e total geral.</p>
+          <p>Os campos de arquivo indicam os nomes esperados: <code>Localizar Bens.csv</code>, <code>Localizar Plano de Contas.csv</code>, <code>relatorio pcasp.txt</code> e <code>PCASP_TCEMG-2026_v12.2.xlsx</code> como referência inicial. O navegador também mostra o nome real selecionado.</p>
+          <p>Use <strong>Limpar arquivos e análises</strong> para remover os CSV/TXT selecionados e os resultados da tela. As decisões salvas permanecem no banco local. Use <strong>Apagar decisões salvas</strong> para removê-las permanentemente.</p>
+          <p>As decisões aprovadas e de manter a conta são recuperadas quando o bem aparece novamente em uma análise. Os CSVs continuam sendo processados em memória e precisam ser carregados em cada sessão.</p>
+        </section>
+
         <section class="doc-section" id="atualizar">
-          <p class="section-kicker">07 · Importação</p>
+          <p class="section-kicker">09 · Importação</p>
           <h2>Atualizar a tabela PCASP</h2>
           <p>Na área <strong>Atualizar tabela PCASP</strong>, selecione um arquivo Excel <code>.xlsx</code>. O sistema lê a primeira aba e procura as colunas <code>CONTA</code>, <code>TÍTULO</code> e <code>FUNÇÃO</code>. Situação, natureza do saldo e outros campos são apresentados quando disponíveis na planilha.</p>
           <ul><li>O limite atual é de 20 MB.</li><li>A tabela carregada só é substituída depois que a nova planilha passa pela validação e importação.</li><li>Se não houver uma planilha aceita, a aplicação informa o erro.</li></ul>
@@ -123,19 +122,58 @@
         </section>
 
         <section class="doc-section" id="sugestoes">
-          <p class="section-kicker">08 · Critério de busca</p>
+          <p class="section-kicker">10 · Critério de busca</p>
           <h2>Como são formadas as sugestões</h2>
           <p>A busca ignora diferenças entre maiúsculas e minúsculas e acentos. Compara palavras digitadas com o código, o título e a função das contas, e ordena os resultados por coincidências textuais. Cada sugestão apresenta os termos que coincidiram no título ou na função.</p>
           <p>Alguns termos comuns têm equivalências de busca. Por exemplo, <code>computador</code> e <code>notebook</code> também procuram referências a equipamento de processamento de dados; <code>cadeira</code> e <code>mesa</code> procuram referências a mobiliário e móveis.</p>
+          <p>Na revisão de bens, as candidatas textuais são confrontadas com <code>Localizar Plano de Contas.csv</code>. Códigos encontrados no cadastro do SH3 são marcados como disponíveis; os ausentes aparecem como não cadastrados e não podem ser aprovados ou exportados. Códigos internos da coluna <code>Código</code> são relacionados à conta PCASP correspondente.</p>
           <div class="tip">O tipo móvel/imóvel prioriza contas cujo título ou função menciona esse tipo, mas não exclui automaticamente as demais contas. A classificação final depende da conferência de quem usa o sistema.</div>
         </section>
 
         <section class="doc-section" id="limites">
-          <p class="section-kicker">09 · Evolução</p>
-          <h2>Limites e próximos passos possíveis</h2>
-          <ul><li>A busca textual pode não encontrar uma conta adequada quando há pouca coincidência de palavras.</li><li>A interface não registra os bens cadastrados nem a decisão final da pessoa usuária.</li><li>A análise de uma planilha de bens já cadastrados ainda não foi implementada.</li><li>A aplicação compartilha consultas apenas na rede privada; o computador que hospeda o sistema precisa ficar ligado.</li><li>O limite de upload pode ser aumentado caso surja a necessidade de importar planilhas maiores.</li></ul>
-          <p>Uma evolução possível é importar uma planilha de bens existentes e sinalizar registros que merecem revisão, mantendo as recomendações como alertas para análise humana.</p>
+          <p class="section-kicker">11 · Limites e cuidados</p>
+          <h2>Limites e cuidados</h2>
+          <ul><li>As sugestões são textuais, podem falhar e não confirmam a classificação correta.</li><li>Diferenças entre CSV e TXT podem decorrer do período ou da composição dos saldos.</li><li>Os arquivos de análise têm limite total de 20 MB e ficam disponíveis apenas no computador principal.</li><li>As decisões atuais são guardadas no banco local, mas o sistema não mantém versões anteriores de cada decisão.</li><li>O sistema não altera diretamente o cadastro do SH3/Siap; os arquivos gerados servem para análise e documentação de uma possível mudança futura.</li><li>O acesso por outras redes requer hospedagem e controles de segurança apropriados.</li></ul>
           <a class="top-link" href="#topo">Voltar ao início ↑</a>
+        </section>
+        <section class="doc-section" id="passo-a-passo">
+          <p class="section-kicker">12 · Fluxo completo</p>
+          <h2>Passo a passo do funcionamento</h2>
+          <p>Este roteiro descreve uma rodada completa. Os arquivos são exportados do SH3/Siap; o Consulta PCASP não se conecta diretamente a esse sistema.</p>
+          <ol>
+            <li><strong>Inicie a aplicação</strong> na pasta do projeto pelo PowerShell, executando <code>\.venv\Scripts\python.exe run.py</code>. Mantenha o terminal aberto e acesse <code>http://127.0.0.1:8765</code>.</li>
+            <li><strong>Confira a tabela PCASP</strong> carregada. Ela fornece as contas usadas nas consultas e sugestões. Atualize-a apenas quando tiver uma nova referência que deseja utilizar.</li>
+            <li><strong>Exporte relatórios atualizados do SH3/Siap:</strong> <code>Localizar Bens.csv</code> e <code>Localizar Plano de Contas.csv</code>. A relação de contas é obrigatória para revisar e aprovar sugestões.</li>
+            <li><strong>Carregue os dois CSVs</strong> na área de revisão e clique em <strong>Analisar bens</strong>. O sistema compara sugestões PCASP com a relação do SH3 e mostra quais existem no cadastro.</li>
+            <li><strong>Revise bem por bem</strong>, conferindo plaqueta, descrição, características e conta atual. Aprove apenas uma candidata marcada como cadastrada no SH3; uma candidata ausente pode ser consultada com a SH3, mas não pode ser aprovada. Sem aprovação, a conta atual permanece.</li>
+            <li><strong>Baixe e confira os dois resultados:</strong> a cópia CSV contém as contas aprovadas; o Excel compara os totais por conta antes e depois e mostra a variação. O CSV original não é sobrescrito e o SH3 não é alterado automaticamente.</li>
+            <li><strong>Em cada nova rodada</strong>, baixe do SH3/Siap os relatórios mais recentes <code>Localizar Bens.csv</code> e <code>Localizar Plano de Contas.csv</code>. Se o inventário apenas acrescentar bens e preservar os registros existentes, as decisões salvas serão retomadas pelo código e pela plaqueta; os bens novos aparecerão sem decisão para análise individual. A cópia aprovada e o comparativo documentam a análise e embasam uma possível mudança futura; não atualizam o SH3/Siap.</li>
+            <li><strong>Opcional — compare saldos:</strong> envie <code>Localizar Bens.csv</code> e <code>relatorio pcasp.txt</code> na área de comparação. O sistema agrupa <code>Valor Atual</code> por <code>Conta Bem</code> e compara com <code>Saldo Final</code>. Diferenças precisam ser conferidas e códigos devem corresponder entre os relatórios.</li>
+            <li><strong>Ao terminar ou iniciar outra análise</strong>, clique em <strong>Limpar arquivos e análises</strong>. Os arquivos da sessão e os resultados da tela são removidos; as decisões salvas e a tabela PCASP permanecem.</li>
+          </ol>
+          <div class="note">As decisões ficam no banco local do sistema. A cópia aprovada e o comparativo documentam a análise para avaliação de uma futura mudança no SH3/Siap; eles não atualizam esse sistema.</div>
+        </section>
+        <section class="doc-section" id="estrutura">
+          <p class="section-kicker">13 · Organização</p>
+          <h2>Estrutura do projeto</h2>
+          <pre class="tree">PROJETO_PCASP_2026/
+├── app/
+│   ├── config.py               Caminhos, host, porta e limite de upload
+│   ├── pcasp.py                Importação, banco local e busca
+│   ├── reconciliation.py       Análises, sugestões e cópia aprovada
+│   ├── server.py               Servidor HTTP e rotas
+│   ├── xlsx_reader.py          Leitura de arquivos .xlsx
+│   └── web/
+│       ├── app.js              Busca, revisão e aprovações
+│       ├── index.html          Página da aplicação
+│       └── style.css           Estilos da interface
+├── data/                       Planilha PCASP e banco local
+├── .venv/                      Ambiente virtual Python
+├── README.md                   Guia rápido
+├── DOCUMENTACAO.md             Manual em Markdown
+├── DOCUMENTACAO.html           Manual para navegador
+└── run.py                      Ponto de entrada</pre>
+          <p>O banco SQLite fica em <code>data/pcasp.sqlite3</code>. Os arquivos CSV e TXT enviados para análise são processados em memória.</p>
         </section>
       </main>
     </div>

@@ -6,6 +6,7 @@ import json
 import re
 import sqlite3
 import unicodedata
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -51,7 +52,64 @@ def _schema(connection: sqlite3.Connection) -> None:
             value TEXT NOT NULL
         )"""
     )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS inventory_review_decisions (
+            asset_key TEXT PRIMARY KEY,
+            asset_code TEXT NOT NULL DEFAULT '',
+            plate TEXT NOT NULL DEFAULT '',
+            description TEXT NOT NULL DEFAULT '',
+            source_account TEXT NOT NULL DEFAULT '',
+            decision TEXT NOT NULL CHECK(decision IN ('approved', 'keep')),
+            account_code TEXT NOT NULL DEFAULT '',
+            account_title TEXT NOT NULL DEFAULT '',
+            updated_at TEXT NOT NULL
+        )"""
+    )
     connection.execute("CREATE INDEX IF NOT EXISTS idx_accounts_status ON accounts(status)")
+
+
+def get_inventory_review_decisions() -> dict[str, dict[str, str]]:
+    connection = connect()
+    try:
+        _schema(connection)
+        rows = connection.execute("SELECT * FROM inventory_review_decisions").fetchall()
+        return {row["asset_key"]: dict(row) for row in rows}
+    finally:
+        connection.close()
+
+
+def save_inventory_review_decision(decision: dict[str, str]) -> None:
+    connection = connect()
+    try:
+        _schema(connection)
+        with connection:
+            connection.execute(
+                """INSERT INTO inventory_review_decisions
+                   (asset_key, asset_code, plate, description, source_account, decision,
+                    account_code, account_title, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(asset_key) DO UPDATE SET
+                    asset_code=excluded.asset_code, plate=excluded.plate,
+                    description=excluded.description, source_account=excluded.source_account,
+                    decision=excluded.decision, account_code=excluded.account_code,
+                    account_title=excluded.account_title, updated_at=excluded.updated_at""",
+                (decision["asset_key"], decision["asset_code"], decision["plate"],
+                 decision["description"], decision["source_account"], decision["decision"],
+                 decision["account_code"], decision["account_title"], decision["updated_at"]),
+            )
+    finally:
+        connection.close()
+
+
+def delete_inventory_review_decisions() -> int:
+    connection = connect()
+    try:
+        _schema(connection)
+        with connection:
+            cursor = connection.execute("DELETE FROM inventory_review_decisions")
+            return cursor.rowcount
+    finally:
+        connection.close()
 
 
 def import_workbook(data: bytes, filename: str) -> int:
@@ -179,14 +237,53 @@ def _add_hierarchy(connection: sqlite3.Connection, results: list[dict[str, Any]]
         ]
 
 
-def search_accounts(query: str, kind: str = "", limit: int = 15, offset: int = 0) -> list[dict[str, Any]]:
-    connection = connect()
-    try:
-        records = connection.execute(
-            "SELECT code, title, function, balance_nature, status, details FROM accounts"
-        ).fetchall()
-    finally:
-        connection.close()
+def build_search_index(records: list[Any]) -> tuple[list[tuple[Any, str, str, str, str]], dict[str, set[int]]]:
+    prepared = [
+        (record, _key(record["title"]), _key(record["function"]), _key(record["code"]), _key(record["status"]))
+        for record in records
+    ]
+    postings: dict[str, set[int]] = defaultdict(set)
+    for index, (_, title, function, code, _) in enumerate(prepared):
+        for text in (title, function, code):
+            for token in re.findall(r"[\w]+", text):
+                gram_size = 2 if len(token) == 2 else 3
+                if len(token) < gram_size:
+                    continue
+                for position in range(len(token) - gram_size + 1):
+                    postings[token[position : position + gram_size]].add(index)
+    return prepared, dict(postings)
+
+
+def search_accounts(
+    query: str,
+    kind: str = "",
+    limit: int = 15,
+    offset: int = 0,
+    *,
+    _records: list[Any] | None = None,
+    _prepared_records: list[tuple[Any, str, str, str, str]] | None = None,
+    _substring_index: dict[str, set[int]] | None = None,
+    _include_hierarchy: bool = True,
+) -> list[dict[str, Any]]:
+    if _prepared_records is None and _records is None:
+        connection = connect()
+        try:
+            records = connection.execute(
+                "SELECT code, title, function, balance_nature, status, details FROM accounts"
+            ).fetchall()
+        finally:
+            connection.close()
+    elif _records is not None:
+        records = _records
+    else:
+        records = []
+    if _prepared_records is None:
+        prepared_records = [
+            (record, _key(record["title"]), _key(record["function"]), _key(record["code"]), _key(record["status"]))
+            for record in records
+        ]
+    else:
+        prepared_records = _prepared_records
 
     stopwords = {"com", "das", "dos", "de", "da", "do", "em", "para", "por", "um", "uma"}
     aliases = {
@@ -219,16 +316,33 @@ def search_accounts(query: str, kind: str = "", limit: int = 15, offset: int = 0
     query_digits = re.sub(r"\D", "", query)
     kind_words = {"movel": ("bem movel", "bens moveis"), "imovel": ("bem imovel", "bens imoveis")}.get(kind, ())
     results: list[tuple[int, dict[str, Any]]] = []
-    for record in records:
+    if _substring_index is not None:
+        candidate_ids: set[int] = set()
+        for term in terms:
+            gram_size = 2 if len(term) == 2 else 3
+            if len(term) < gram_size:
+                continue
+            postings = [_substring_index.get(term[position : position + gram_size], set())
+                        for position in range(len(term) - gram_size + 1)]
+            if postings and all(postings):
+                matches = set.intersection(*(set(posting) for posting in postings))
+                candidate_ids.update(matches)
+        if len(query_digits) >= 8:
+            candidate_ids.update(
+                index for index, (record, *_rest) in enumerate(prepared_records)
+                if query_digits == re.sub(r"\D", "", str(record["code"]))
+            )
+        candidates = (prepared_records[index] for index in candidate_ids)
+    else:
+        candidates = iter(prepared_records)
+    for record, normalized_title, normalized_function, normalized_code, normalized_status in candidates:
         code = record["code"]
         title = record["title"]
         function = record["function"]
         status = record["status"]
-        if status and _key(status) not in {"ativa", "ativo"}:
+        if status and normalized_status not in {"ativa", "ativo"}:
             continue
-        normalized_title = _key(title)
-        normalized_function = _key(function)
-        searchable = f"{normalized_title} {normalized_function} {_key(code)}"
+        searchable = f"{normalized_title} {normalized_function} {normalized_code}"
         score = 0
         reasons: list[str] = []
         exact_code_match = bool(query_digits) and query_digits == re.sub(r"\D", "", code)
@@ -240,7 +354,7 @@ def search_accounts(query: str, kind: str = "", limit: int = 15, offset: int = 0
                 score += 7 if normalized_title.startswith(term) else 5
             if term in normalized_function:
                 score += 2
-            if term in _key(code):
+            if term in normalized_code:
                 score += 3
         for term in query_terms:
             if term in normalized_title:
@@ -264,9 +378,10 @@ def search_accounts(query: str, kind: str = "", limit: int = 15, offset: int = 0
     results.sort(key=lambda item: (-item[0], str(item[1]["code"])))
     start = max(0, offset)
     selected = [dict(score=score, **result) for score, result in results[start : start + max(1, limit)]]
-    connection = connect()
-    try:
-        _add_hierarchy(connection, selected)
-    finally:
-        connection.close()
+    if _include_hierarchy:
+        connection = connect()
+        try:
+            _add_hierarchy(connection, selected)
+        finally:
+            connection.close()
     return selected

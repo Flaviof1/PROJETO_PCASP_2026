@@ -78,12 +78,54 @@
       <section class="import-panel">
         <div class="import-icon" aria-hidden="true">↥</div>
         <div class="import-copy"><span class="step-label">BASE DE REFERÊNCIA</span><h2>Atualizar tabela PCASP</h2><p id="source-status">Carregando informações da tabela…</p></div>
-        <form id="upload-form" class="upload-form"><label class="secondary-button" for="workbook">Escolher Excel <span aria-hidden="true">↗</span></label><input id="workbook" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><span class="file-hint" id="file-hint">.xlsx até 20 MB</span></form>
+        <form id="upload-form" class="upload-form"><label class="secondary-button" for="workbook">Selecionar PCASP_TCEMG-2026_v12.2.xlsx <span aria-hidden="true">↗</span></label><input id="workbook" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden><span class="file-hint" id="file-hint">Planilha de referência PCASP · .xlsx até 20 MB</span></form>
       </section>
+      <section class="reconcile-panel" aria-labelledby="reconcile-title">
+        <div class="panel-heading">
+          <div><span class="step-label">CONFERÊNCIA PATRIMONIAL</span><h2 id="reconcile-title">Comparar inventário com relatório PCASP</h2></div>
+        </div>
+        <p class="reconcile-intro">Envie o CSV “Localizar Bens” e o TXT “PCASP - Inventário Ativo”. O sistema soma o Valor Atual por Conta Bem e compara com o Saldo Final por conta, destacando pontos para revisão. A ferramenta apenas indica diferenças: não altera contas nem modifica os arquivos.</p>
+        <form id="reconcile-form" class="reconcile-form">
+          <label class="file-picker">Inventário: Localizar Bens.csv<input id="inventory-file" type="file" accept=".csv,text/csv" required></label>
+          <label class="file-picker">Saldos: relatorio pcasp.txt<input id="ledger-file" type="file" accept=".txt,text/plain" required></label>
+          <button class="primary-button" type="submit">Analisar arquivos <span aria-hidden="true">→</span></button>
+        </form>
+        <p class="file-hint">Até 20 MB no total. Os arquivos são analisados em memória e não ficam salvos pelo sistema.</p>
+        <section id="reconcile-results" class="reconcile-results" aria-live="polite" hidden>
+          <div class="reconcile-summary" id="reconcile-summary"></div>
+          <div class="reconcile-table-wrap"><table class="reconcile-table"><thead><tr><th>Conta</th><th>Descrição</th><th>Bens</th><th>Valor atual no inventário</th><th>Saldo final PCASP</th><th>Diferença</th><th>Situação</th></tr></thead><tbody id="reconcile-rows"></tbody></table></div>
+          <p class="comparison-note" id="reconcile-note"></p>
+        </section>
+      </section>
+      <section class="review-panel" aria-labelledby="review-title">
+        <div class="panel-heading"><div><span class="step-label">ORIENTAÇÃO DE CONFERÊNCIA</span><h2 id="review-title">Quais bens e contas devo conferir?</h2></div><button id="clear-imports" class="secondary-button" type="button">Limpar arquivos e análises</button></div>
+        <p class="reconcile-intro">Carregue o CSV Localizar Bens e a relação de contas do SH3. O sistema compara a descrição de cada bem com a conta atual, mostra candidatas PCASP e informa se cada uma está cadastrada no SH3. Você analisa as características antes de aprovar ou rejeitar uma troca.</p>
+        <p class="file-hint">As decisões de análise são salvas no banco local deste sistema e recuperadas ao carregar novamente o inventário. Os arquivos CSV continuam apenas na sessão e não são armazenados.</p>
+        <button id="clear-saved-reviews" class="secondary-button" type="button">Apagar decisões salvas</button>
+        <form id="review-form" class="reconcile-form"><label class="file-picker">Inventário: Localizar Bens.csv<input id="review-file" type="file" accept=".csv,text/csv" required></label><label class="file-picker">Contas do SH3: Localizar Plano de Contas.csv<input id="system-account-file" type="file" accept=".csv,text/csv" required></label><button class="primary-button" type="submit">Analisar bens <span aria-hidden="true">→</span></button></form>
+        <p class="file-hint">Até 20 MB no total. As decisões aprovadas e não aprovadas ficam salvas neste computador. O original nunca é sobrescrito.</p>
+        <section id="review-results" class="review-results" aria-live="polite" hidden>
+          <div id="review-summary" class="reconcile-summary"></div>
+          <p class="file-hint">A relação do SH3 identifica quais contas candidatas estão cadastradas e converte códigos internos, como 00713, para a conta PCASP correspondente.</p>
+          <div class="review-controls"><label for="review-filter">Filtrar bens</label><input id="review-filter" type="search" placeholder="Descrição, plaqueta, conta..." autocomplete="off"><span id="review-filter-count"></span><span id="approval-count">0 aprovadas</span><button id="export-approved" type="button" class="primary-button" disabled>Baixar cópia com aprovadas</button><button id="export-account-summary" type="button" class="secondary-button" disabled>Baixar resumo Excel</button></div>
+          <div class="reconcile-table-wrap"><table class="review-table"><thead><tr><th>Plaqueta / código</th><th>Descrição do bem</th><th>Conta atual</th><th>Possíveis contas PCASP</th><th>Estado</th><th>Análise</th></tr></thead><tbody id="review-rows"></tbody></table></div>
+          <p class="comparison-note" id="review-note"></p>
+          <p class="file-hint">O Excel compara os totais por conta antes e depois das aprovações. A aba “Itens alterados” mostra o valor individual, a plaqueta e as contas anterior e nova de cada bem.</p>
+        </section>
+      </section>
+      <dialog id="asset-review-dialog" class="asset-review-dialog" aria-labelledby="asset-review-title">
+        <div class="dialog-head"><div><span class="step-label">REVISÃO DO BEM</span><h2 id="asset-review-title">Confira antes de aprovar</h2></div><button id="close-asset-review" class="dialog-close" type="button" aria-label="Fechar análise">×</button></div>
+        <div id="asset-review-details" class="asset-review-details"></div>
+        <h3>Conta atual e possíveis contas</h3>
+        <div id="asset-account-options" class="asset-account-options"></div>
+        <p id="asset-review-guidance" class="asset-review-guidance"></p>
+        <p class="comparison-note">A sugestão é baseada em palavras da descrição. Confira as características e a função contábil antes de aprovar.</p>
+        <div class="asset-review-actions"><button id="reject-suggestion" type="button" class="secondary-button">Não aprovar</button><button id="approve-suggestion" type="button" class="primary-button">Aprovar conta selecionada</button></div>
+      </dialog>
       <div class="toast" id="toast" role="status" hidden></div>
     </main>
 
-    <footer><span>Consulta PCASP · TCEMG 2026</span><span>As sugestões apoiam a análise; a decisão é do usuário.</span></footer>
+    <footer><span>Consulta PCASP · TCEMG 2026 - F3 TECNOLGIA</span><span>As sugestões apoiam a análise; a decisão é do usuário.</span></footer>
   </div>
 </body>
 </html>

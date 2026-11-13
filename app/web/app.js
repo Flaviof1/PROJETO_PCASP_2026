@@ -9,6 +9,9 @@ const moreResults = document.querySelector('#more-results');
 const loadMoreButton = document.querySelector('#load-more');
 const uploadInput = document.querySelector('#workbook');
 const toast = document.querySelector('#toast');
+const reconcileForm = document.querySelector('#reconcile-form');
+const reviewForm = document.querySelector('#review-form');
+const assetReviewDialog = document.querySelector('#asset-review-dialog');
 const compareDock = document.querySelector('#compare-dock');
 const compareTags = document.querySelector('#compare-tags');
 const compareDialog = document.querySelector('#comparison-dialog');
@@ -20,6 +23,13 @@ let activeQuery = '';
 let activeKind = '';
 let searchOffset = 0;
 let toastTimer;
+let reviewInventoryFile = null;
+let systemAccountFile = null;
+let reviewItems = [];
+let activeReviewItem = null;
+let selectedReviewAccount = null;
+const approvedReviewItems = new Map();
+const rejectedReviewItems = new Set();
 
 function showToast(message, isError = false) {
   toast.textContent = message;
@@ -27,6 +37,23 @@ function showToast(message, isError = false) {
   toast.hidden = false;
   window.clearTimeout(toastTimer);
   toastTimer = window.setTimeout(() => { toast.hidden = true; }, 5000);
+}
+
+async function saveReviewDecision(item, decision, account = null) {
+  if (!systemAccountFile) throw new Error('Carregue a relação do SH3 antes de salvar a análise.');
+  const body = new FormData();
+  body.append('decision', new Blob([JSON.stringify({
+    asset_code: item.asset_code,
+    plate: item.plate,
+    description: item.description,
+    source_account: item.source_account,
+    decision,
+    account_code: account?.code || '',
+  })], { type: 'application/json' }), 'decisao.json');
+  body.append('plano_sh3', systemAccountFile);
+  const response = await fetch('/api/inventory-review-decision', { method: 'POST', body });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Não foi possível salvar esta decisão da análise.');
 }
 
 function createTag(label, muted = false) {
@@ -317,6 +344,8 @@ async function loadStatus() {
     document.querySelector('#access-mode').textContent = data.can_upload ? 'Uso local' : 'Rede local';
     if (!data.can_upload) {
       document.querySelector('#upload-form').hidden = true;
+      reconcileForm.hidden = true;
+      reviewForm.hidden = true;
       document.querySelector('.import-copy h2').textContent = 'Tabela compartilhada';
     }
     status.textContent = data.account_count
@@ -347,7 +376,424 @@ uploadInput.addEventListener('change', async () => {
     showToast(error.message || 'Falha ao enviar a planilha.', true);
   } finally {
     uploadInput.value = '';
-    document.querySelector('#file-hint').textContent = '.xlsx até 20 MB';
+    document.querySelector('#file-hint').textContent = 'Planilha de referência PCASP · .xlsx até 20 MB';
+  }
+});
+
+reconcileForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const inventory = document.querySelector('#inventory-file').files?.[0];
+  const ledger = document.querySelector('#ledger-file').files?.[0];
+  if (!inventory || !ledger) return;
+  const button = reconcileForm.querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.textContent = 'Analisando…';
+  const body = new FormData();
+  body.append('inventario', inventory);
+  body.append('relatorio', ledger);
+  try {
+    const response = await fetch('/api/reconcile', { method: 'POST', body });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível analisar os arquivos.');
+    const results = document.querySelector('#reconcile-results');
+    const summary = document.querySelector('#reconcile-summary');
+    const rows = document.querySelector('#reconcile-rows');
+    summary.replaceChildren();
+    rows.replaceChildren();
+    const cards = [
+      [`${Number(data.inventory_items).toLocaleString('pt-BR')}`, 'bens lidos'],
+      [`${Number(data.inventory_accounts).toLocaleString('pt-BR')}`, 'contas no inventário'],
+      [`${Number(data.matched_accounts).toLocaleString('pt-BR')}`, 'contas comparadas'],
+      [`${data.rows.filter((row) => row.has_difference).length.toLocaleString('pt-BR')}`, 'diferenças para conferir'],
+    ];
+    for (const [value, label] of cards) {
+      const card = document.createElement('div');
+      card.className = 'summary-card';
+      const strong = document.createElement('strong');
+      strong.textContent = value;
+      const small = document.createElement('span');
+      small.textContent = label;
+      card.append(strong, small);
+      summary.append(card);
+    }
+    for (const item of data.rows) {
+      const row = document.createElement('tr');
+      if (item.has_difference) row.className = 'difference-row';
+      for (const value of [item.code, item.title, item.item_count ? Number(item.item_count).toLocaleString('pt-BR') : '—', item.inventory_value, item.ledger_balance, item.difference, item.status]) {
+        const cell = document.createElement('td');
+        cell.textContent = value;
+        row.append(cell);
+      }
+      rows.append(row);
+    }
+    document.querySelector('#reconcile-note').textContent = `${data.period ? `Período do relatório: ${data.period}. ` : ''}${data.note}`;
+    results.hidden = false;
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (error) {
+    showToast(error.message || 'Falha ao conectar com o sistema.', true);
+  } finally {
+    button.disabled = false;
+    button.innerHTML = 'Analisar arquivos <span aria-hidden="true">→</span>';
+  }
+});
+
+function updateReviewApprovalSummary() {
+  const count = approvedReviewItems.size;
+  document.querySelector('#approval-count').textContent = `${count.toLocaleString('pt-BR')} aprovada(s)`;
+  document.querySelector('#export-approved').disabled = count === 0 || !systemAccountFile;
+  document.querySelector('#export-account-summary').disabled = !reviewInventoryFile || !systemAccountFile;
+}
+
+function renderReviewRows() {
+  const filter = normalizeLabel(document.querySelector('#review-filter').value);
+  const rows = document.querySelector('#review-rows');
+  rows.replaceChildren();
+  const filtered = reviewItems.filter((item) => normalizeLabel([
+    item.plate, item.asset_code, item.description, item.current_code, item.current_title,
+    ...item.suggestions.map((suggestion) => `${suggestion.code} ${suggestion.title}`),
+  ].join(' ')).includes(filter));
+  for (const item of filtered.slice(0, 500)) {
+    const row = document.createElement('tr');
+    const locator = document.createElement('td');
+    locator.textContent = `Plaqueta ${item.plate || '—'}${item.asset_code ? ` · Código ${item.asset_code}` : ''}`;
+    const description = document.createElement('td');
+    description.textContent = item.description;
+    const current = document.createElement('td');
+    current.textContent = `${item.current_code} · ${item.current_title}${item.current_available_in_system ? '' : ' (não localizada no SH3)'}`;
+    const suggestions = document.createElement('td');
+    suggestions.textContent = item.suggestions.map((suggestion) =>
+      `${suggestion.code} · ${suggestion.title} (${suggestion.available_in_system ? 'cadastrada no SH3' : 'não cadastrada no SH3'})`
+    ).join(' / ');
+    const status = document.createElement('td');
+    if (approvedReviewItems.has(item.row_index)) {
+      const approved = approvedReviewItems.get(item.row_index);
+      status.textContent = `Aprovada: ${approved.code}`;
+      status.className = 'approved-state';
+    } else if (rejectedReviewItems.has(item.row_index)) {
+      status.textContent = 'Não aprovada';
+      status.className = 'rejected-state';
+    } else {
+      status.textContent = 'Aguardando análise';
+    }
+    const action = document.createElement('td');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'secondary-button review-open-button';
+    button.textContent = 'Analisar';
+    button.addEventListener('click', () => openAssetReview(item));
+    action.append(button);
+    row.append(locator, description, current, suggestions, status, action);
+    rows.append(row);
+  }
+  document.querySelector('#review-filter-count').textContent = `${filtered.length.toLocaleString('pt-BR')} item(ns)${filtered.length > 500 ? ' · exibindo os primeiros 500' : ''}`;
+  updateReviewApprovalSummary();
+}
+
+function openAssetReview(item) {
+  activeReviewItem = item;
+  const existing = approvedReviewItems.get(item.row_index);
+  selectedReviewAccount = existing
+    ? item.suggestions.find((suggestion) => suggestion.code === existing.code && suggestion.available_in_system)
+    : item.suggestions.find((suggestion) => suggestion.available_in_system);
+  document.querySelector('#asset-review-title').textContent = item.description || 'Confira as características do bem';
+  const details = document.querySelector('#asset-review-details');
+  details.replaceChildren();
+  const characteristics = [
+    { label: 'Plaqueta', value: item.plate || 'Não informada' },
+    { label: 'Conta Bem atual', value: `${item.current_code} · ${item.current_title}` },
+    ...(item.current_function ? [{ label: 'Função da conta atual', value: item.current_function }] : []),
+    ...(item.current_balance_nature ? [{ label: 'Natureza do saldo atual', value: item.current_balance_nature }] : []),
+    ...(item.current_status ? [{ label: 'Situação da conta atual', value: item.current_status }] : []),
+    ...item.characteristics,
+  ];
+  for (const characteristic of characteristics) {
+    const line = document.createElement('div');
+    line.className = 'review-detail-line';
+    const label = document.createElement('strong');
+    label.textContent = characteristic.label;
+    const value = document.createElement('span');
+    value.textContent = characteristic.value;
+    line.append(label, value);
+    details.append(line);
+  }
+  if (item.current_account_details) {
+    const currentFields = document.createElement('details');
+    currentFields.className = 'review-account-metadata';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Ver demais campos da conta atual';
+    const pre = document.createElement('pre');
+    pre.textContent = item.current_account_details;
+    currentFields.append(summary, pre);
+    details.append(currentFields);
+  }
+  const options = document.querySelector('#asset-account-options');
+  options.replaceChildren();
+  for (const suggestion of item.suggestions) {
+    const option = document.createElement('label');
+    option.className = 'review-account-option';
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'review-account-choice';
+    radio.value = suggestion.code;
+    radio.checked = suggestion.code === selectedReviewAccount?.code;
+    radio.disabled = !suggestion.available_in_system;
+    radio.addEventListener('change', () => {
+      selectedReviewAccount = suggestion;
+      document.querySelector('#approve-suggestion').disabled = !suggestion.available_in_system;
+    });
+    const content = document.createElement('span');
+    const heading = document.createElement('strong');
+    heading.textContent = `${suggestion.code} · ${suggestion.title}`;
+    const availability = document.createElement('span');
+    availability.className = `account-availability ${suggestion.available_in_system ? 'available' : 'unavailable'}`;
+    availability.textContent = suggestion.available_in_system
+      ? 'Cadastrada no SH3/Siap — disponível para aprovação'
+      : 'Não cadastrada no SH3/Siap — solicite inclusão antes de usar';
+    const functionText = document.createElement('span');
+    functionText.textContent = suggestion.function || 'Função não informada na tabela PCASP.';
+    const nature = document.createElement('span');
+    nature.textContent = `Natureza do saldo: ${suggestion.balance_nature || 'não informada'}${suggestion.status ? ` · Situação: ${suggestion.status}` : ''}`;
+    const reason = document.createElement('span');
+    reason.className = 'review-reason';
+    reason.textContent = `Motivo da sugestão: ${suggestion.reasons.join(' ')}`;
+    content.append(heading, availability, functionText, nature, reason);
+    if (suggestion.details) {
+      const metadata = document.createElement('details');
+      metadata.className = 'review-account-metadata';
+      const summary = document.createElement('summary');
+      summary.textContent = 'Ver atributos e outros campos';
+      const pre = document.createElement('pre');
+      pre.textContent = suggestion.details;
+      metadata.append(summary, pre);
+      content.append(metadata);
+    }
+    option.append(radio, content);
+    options.append(option);
+  }
+  const approveButton = document.querySelector('#approve-suggestion');
+  approveButton.disabled = !selectedReviewAccount?.available_in_system;
+  const hasAvailableOption = item.suggestions.some((suggestion) => suggestion.available_in_system);
+  document.querySelector('#asset-review-guidance').textContent = hasAvailableOption
+    ? `${item.guidance} Somente contas cadastradas no SH3 podem ser aprovadas e exportadas.`
+    : `${item.guidance} Nenhuma candidata desta análise está cadastrada no SH3; consulte a SH3 para solicitar inclusão.`;
+  assetReviewDialog.showModal();
+}
+
+document.querySelector('#close-asset-review').addEventListener('click', () => assetReviewDialog.close());
+assetReviewDialog.addEventListener('click', (event) => { if (event.target === assetReviewDialog) assetReviewDialog.close(); });
+document.querySelector('#approve-suggestion').addEventListener('click', async () => {
+  if (!activeReviewItem || !selectedReviewAccount?.available_in_system) return;
+  const button = document.querySelector('#approve-suggestion');
+  button.disabled = true;
+  try {
+    await saveReviewDecision(activeReviewItem, 'approved', selectedReviewAccount);
+  } catch (error) {
+    showToast(error.message || 'Não foi possível salvar esta decisão.', true);
+    button.disabled = false;
+    return;
+  }
+  approvedReviewItems.set(activeReviewItem.row_index, { code: selectedReviewAccount.code, title: selectedReviewAccount.title });
+  rejectedReviewItems.delete(activeReviewItem.row_index);
+  renderReviewRows();
+  assetReviewDialog.close();
+  button.disabled = false;
+});
+document.querySelector('#reject-suggestion').addEventListener('click', async () => {
+  if (!activeReviewItem) return;
+  const button = document.querySelector('#reject-suggestion');
+  button.disabled = true;
+  try {
+    await saveReviewDecision(activeReviewItem, 'keep');
+  } catch (error) {
+    showToast(error.message || 'Não foi possível salvar esta decisão.', true);
+    button.disabled = false;
+    return;
+  }
+  approvedReviewItems.delete(activeReviewItem.row_index);
+  rejectedReviewItems.add(activeReviewItem.row_index);
+  renderReviewRows();
+  assetReviewDialog.close();
+  button.disabled = false;
+});
+
+reviewForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const file = document.querySelector('#review-file').files?.[0];
+  if (!file || !systemAccountFile) return;
+  const button = reviewForm.querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.textContent = 'Analisando…';
+  const body = new FormData();
+  body.append('inventario', file);
+  body.append('plano_sh3', systemAccountFile);
+  try {
+    const response = await fetch('/api/inventory-review', { method: 'POST', body });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível analisar o inventário.');
+    reviewInventoryFile = file;
+    reviewItems = data.recommendations;
+    approvedReviewItems.clear();
+    rejectedReviewItems.clear();
+    for (const item of reviewItems) {
+      if (item.saved_decision?.decision === 'approved') {
+        approvedReviewItems.set(item.row_index, {
+          code: item.saved_decision.account_code,
+          title: item.saved_decision.account_title,
+        });
+      } else if (item.saved_decision?.decision === 'keep') {
+        rejectedReviewItems.add(item.row_index);
+      }
+    }
+    document.querySelector('#review-filter').value = '';
+    document.querySelector('#review-summary').replaceChildren();
+    for (const [value, label] of [
+      [Number(data.item_count).toLocaleString('pt-BR'), 'bens com descrição analisados'],
+      [Number(data.unique_descriptions).toLocaleString('pt-BR'), 'descrições distintas'],
+      [Number(data.review_count).toLocaleString('pt-BR'), 'bens sugeridos para conferência'],
+      [Number(data.unavailable_suggestion_codes).toLocaleString('pt-BR'), 'contas candidatas ausentes do SH3'],
+    ]) {
+      const card = document.createElement('div');
+      card.className = 'summary-card';
+      const strong = document.createElement('strong');
+      strong.textContent = value;
+      const small = document.createElement('span');
+      small.textContent = label;
+      card.append(strong, small);
+      document.querySelector('#review-summary').append(card);
+    }
+    document.querySelector('#review-note').textContent = data.note;
+    document.querySelector('#review-results').hidden = false;
+    renderReviewRows();
+    const savedCount = approvedReviewItems.size + rejectedReviewItems.size;
+    if (savedCount) showToast(`${savedCount.toLocaleString('pt-BR')} decisão(ões) salva(s) anteriormente foram recuperadas.`);
+    document.querySelector('#review-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (error) {
+    showToast(error.message || 'Falha ao analisar os bens.', true);
+  } finally {
+    button.disabled = false;
+    button.innerHTML = 'Analisar bens <span aria-hidden="true">→</span>';
+  }
+});
+
+document.querySelector('#review-filter').addEventListener('input', renderReviewRows);
+document.querySelector('#export-approved').addEventListener('click', async () => {
+  if (!reviewInventoryFile || !systemAccountFile || approvedReviewItems.size === 0) return;
+  const button = document.querySelector('#export-approved');
+  button.disabled = true;
+  button.textContent = 'Preparando cópia…';
+  const body = new FormData();
+  body.append('inventario', reviewInventoryFile);
+  body.append('plano_sh3', systemAccountFile);
+  body.append('aprovadas', new Blob([JSON.stringify([...approvedReviewItems].map(([row_index, value]) => ({ row_index, account_code: value.code })))]), 'aprovadas.json');
+  try {
+    const response = await fetch('/api/inventory-export', { method: 'POST', body });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Não foi possível gerar a cópia aprovada.');
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Localizar_Bens_alteracoes_aprovadas.csv';
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast(`Cópia gerada com ${approvedReviewItems.size.toLocaleString('pt-BR')} alteração(ões) aprovada(s). O original permanece intacto.`);
+  } catch (error) {
+    showToast(error.message || 'Falha ao gerar a cópia aprovada.', true);
+  } finally {
+    button.textContent = 'Baixar cópia com aprovadas';
+    button.disabled = approvedReviewItems.size === 0 || !systemAccountFile;
+  }
+});
+
+document.querySelector('#export-account-summary').addEventListener('click', async () => {
+  if (!reviewInventoryFile || !systemAccountFile) return;
+  const button = document.querySelector('#export-account-summary');
+  button.disabled = true;
+  button.textContent = 'Preparando Excel…';
+  const body = new FormData();
+  body.append('inventario', reviewInventoryFile);
+  body.append('plano_sh3', systemAccountFile);
+  body.append('aprovadas', new Blob([JSON.stringify([...approvedReviewItems].map(([row_index, value]) => ({ row_index, account_code: value.code })))]), 'aprovadas.json');
+  try {
+    const response = await fetch('/api/inventory-summary', { method: 'POST', body });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Não foi possível gerar o resumo por conta.');
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Resumo_final_por_conta.xlsx';
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const excludedCount = Number(response.headers.get('X-Summary-Excluded') || 0);
+    showToast(excludedCount
+      ? `Comparativo antes/depois gerado. ${excludedCount.toLocaleString('pt-BR')} bem(ns) sem correspondência foram excluídos dos totais finais e listados na planilha.`
+      : 'Comparativo Excel antes/depois gerado por conta patrimonial.');
+  } catch (error) {
+    showToast(error.message || 'Falha ao gerar o resumo Excel por conta.', true);
+  } finally {
+    button.textContent = 'Baixar resumo Excel';
+    button.disabled = !reviewInventoryFile || !systemAccountFile;
+  }
+});
+
+document.querySelector('#system-account-file').addEventListener('change', (event) => {
+  const hadAnalysis = Boolean(reviewInventoryFile);
+  systemAccountFile = event.target.files?.[0] || null;
+  if (hadAnalysis) {
+    reviewInventoryFile = null;
+    reviewItems = [];
+    approvedReviewItems.clear();
+    rejectedReviewItems.clear();
+    document.querySelector('#review-results').hidden = true;
+    showToast('A relação do SH3 mudou. Refaça a análise do inventário para atualizar as candidatas.');
+  }
+  updateReviewApprovalSummary();
+});
+
+document.querySelector('#clear-imports').addEventListener('click', () => {
+  reconcileForm.reset();
+  reviewForm.reset();
+  document.querySelector('#system-account-file').value = '';
+  document.querySelector('#reconcile-results').hidden = true;
+  document.querySelector('#review-results').hidden = true;
+  document.querySelector('#review-summary').replaceChildren();
+  document.querySelector('#review-rows').replaceChildren();
+  document.querySelector('#review-note').textContent = '';
+  document.querySelector('#review-filter').value = '';
+  document.querySelector('#review-filter-count').textContent = '';
+  reviewInventoryFile = null;
+  systemAccountFile = null;
+  reviewItems = [];
+  activeReviewItem = null;
+  selectedReviewAccount = null;
+  approvedReviewItems.clear();
+  rejectedReviewItems.clear();
+  if (assetReviewDialog.open) assetReviewDialog.close();
+  updateReviewApprovalSummary();
+  showToast('Arquivos e resultados desta tela foram limpos. As decisões salvas no banco local foram mantidas.');
+});
+
+document.querySelector('#clear-saved-reviews').addEventListener('click', async () => {
+  if (!window.confirm('Apagar todas as decisões salvas da análise neste computador? Esta ação não pode ser desfeita.')) return;
+  try {
+    const response = await fetch('/api/inventory-review-decisions/clear', { method: 'POST', body: new FormData() });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível apagar as decisões salvas.');
+    approvedReviewItems.clear();
+    rejectedReviewItems.clear();
+    for (const item of reviewItems) delete item.saved_decision;
+    renderReviewRows();
+    updateReviewApprovalSummary();
+    showToast(`${Number(data.deleted || 0).toLocaleString('pt-BR')} decisão(ões) salva(s) apagada(s).`);
+  } catch (error) {
+    showToast(error.message || 'Não foi possível apagar as decisões salvas.', true);
   }
 });
 

@@ -14,20 +14,29 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from app.config import HOST, INITIAL_WORKBOOK, MAX_UPLOAD_BYTES, PORT, WEB_DIR
-from app.pcasp import ensure_initial_data, get_status, import_workbook, search_accounts
+from app.pcasp import delete_inventory_review_decisions, ensure_initial_data, get_status, import_workbook, search_accounts
+from app.reconciliation import (
+    analyze_files,
+    export_account_summary,
+    export_approved_changes,
+    save_inventory_review_decision,
+    suggest_inventory_reviews,
+)
 from app.xlsx_reader import SpreadsheetError
 
 
 class ApplicationHandler(BaseHTTPRequestHandler):
     server_version = "ConsultaPCASP/0.1"
 
-    def _send(self, status: int, content: bytes, content_type: str) -> None:
+    def _send(self, status: int, content: bytes, content_type: str, extra_headers: dict[str, str] | None = None) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(content)))
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'")
+        for name, value in (extra_headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(content)
 
@@ -69,11 +78,16 @@ class ApplicationHandler(BaseHTTPRequestHandler):
             self._json(404, {"error": "Rota não encontrada."})
 
     def do_POST(self) -> None:
-        if urlparse(self.path).path != "/api/upload":
+        route = urlparse(self.path).path
+        if route not in {
+            "/api/upload", "/api/reconcile", "/api/inventory-review",
+            "/api/inventory-review-decision", "/api/inventory-review-decisions/clear",
+            "/api/inventory-export", "/api/inventory-summary",
+        }:
             self._json(404, {"error": "Rota não encontrada."})
             return
         if self.client_address[0] not in {"127.0.0.1", "::1"}:
-            self._json(403, {"error": "A atualização da tabela só pode ser feita no computador que hospeda o sistema."})
+            self._json(403, {"error": "Esta operação só pode ser feita no computador que hospeda o sistema."})
             return
         length = int(self.headers.get("Content-Length", "0"))
         if length <= 0 or length > MAX_UPLOAD_BYTES:
@@ -88,6 +102,124 @@ class ApplicationHandler(BaseHTTPRequestHandler):
             f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("ascii") + body
         )
         message = BytesParser(policy=policy.default).parsebytes(envelope)
+        if route == "/api/inventory-review-decisions/clear":
+            self._json(200, {"deleted": delete_inventory_review_decisions()})
+            return
+        if route == "/api/inventory-review-decision":
+            parts = {}
+            for part in message.iter_parts():
+                if part.get_content_disposition() == "form-data":
+                    name = part.get_param("name", header="content-disposition")
+                    if name:
+                        parts[name] = part
+            decision = parts.get("decision")
+            system_accounts = parts.get("plano_sh3")
+            if decision is None or system_accounts is None or not system_accounts.get_filename():
+                self._json(400, {"error": "Envie a decisão e a relação Localizar Plano de Contas.csv."})
+                return
+            try:
+                save_inventory_review_decision(
+                    decision.get_payload(decode=True) or b"",
+                    system_accounts.get_payload(decode=True) or b"",
+                )
+                self._json(200, {"saved": True})
+            except SpreadsheetError as exc:
+                self._json(422, {"error": str(exc)})
+            except Exception:
+                self.log_error("Falha ao salvar decisão da revisão do inventário")
+                self._json(500, {"error": "Não foi possível salvar a decisão da análise."})
+            return
+        if route == "/api/inventory-review":
+            parts = {}
+            for part in message.iter_parts():
+                if part.get_content_disposition() == "form-data":
+                    name = part.get_param("name", header="content-disposition")
+                    if name:
+                        parts[name] = part
+            inventory = parts.get("inventario")
+            system_accounts = parts.get("plano_sh3")
+            if inventory is None or not inventory.get_filename():
+                self._json(400, {"error": "Selecione o CSV Localizar Bens."})
+                return
+            if system_accounts is None or not system_accounts.get_filename():
+                self._json(400, {"error": "Selecione Localizar Plano de Contas.csv para conferir as contas disponíveis no SH3."})
+                return
+            try:
+                self._json(200, suggest_inventory_reviews(
+                    inventory.get_payload(decode=True) or b"",
+                    system_accounts.get_payload(decode=True) or b"",
+                ))
+            except SpreadsheetError as exc:
+                self._json(422, {"error": str(exc)})
+            except Exception:
+                self.log_error("Falha ao gerar sugestões de revisão do inventário")
+                self._json(500, {"error": "Não foi possível analisar o inventário."})
+            return
+        if route in {"/api/inventory-export", "/api/inventory-summary"}:
+            parts = {}
+            for part in message.iter_parts():
+                if part.get_content_disposition() == "form-data":
+                    name = part.get_param("name", header="content-disposition")
+                    if name:
+                        parts[name] = part
+            inventory = parts.get("inventario")
+            approvals = parts.get("aprovadas")
+            system_accounts = parts.get("plano_sh3")
+            if inventory is None or not inventory.get_filename() or approvals is None:
+                self._json(400, {"error": "Envie o CSV original e as aprovações da revisão."})
+                return
+            if system_accounts is None or not system_accounts.get_filename():
+                self._json(400, {"error": "Selecione Localizar Plano de Contas.csv para relacionar os códigos do SH3."})
+                return
+            try:
+                inventory_data = inventory.get_payload(decode=True) or b""
+                approvals_data = approvals.get_payload(decode=True) or b""
+                extra_headers = None
+                if route == "/api/inventory-summary":
+                    result, excluded_count = export_account_summary(
+                        inventory_data,
+                        approvals_data,
+                        system_accounts.get_payload(decode=True) or b"",
+                    )
+                    extra_headers = {"X-Summary-Excluded": str(excluded_count)}
+                else:
+                    result = export_approved_changes(
+                        inventory_data,
+                        approvals_data,
+                        system_accounts.get_payload(decode=True) or b"",
+                    )
+                content_type = (
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    if route == "/api/inventory-summary"
+                    else "text/csv; charset=windows-1252"
+                )
+                self._send(200, result, content_type, extra_headers)
+            except SpreadsheetError as exc:
+                self._json(422, {"error": str(exc)})
+            except Exception:
+                self.log_error("Falha ao exportar arquivo da revisão do inventário")
+                error = "Não foi possível gerar o resumo por conta." if route == "/api/inventory-summary" else "Não foi possível criar a cópia com as alterações aprovadas."
+                self._json(500, {"error": error})
+            return
+        if route == "/api/reconcile":
+            files = {}
+            for part in message.iter_parts():
+                if part.get_content_disposition() != "form-data":
+                    continue
+                field_name = part.get_param("name", header="content-disposition")
+                if field_name in {"inventario", "relatorio"} and part.get_filename():
+                    files[field_name] = part.get_payload(decode=True) or b""
+            if not files.get("inventario") or not files.get("relatorio"):
+                self._json(400, {"error": "Selecione o CSV do inventário e o TXT do relatório PCASP."})
+                return
+            try:
+                self._json(200, analyze_files(files["inventario"], files["relatorio"]))
+            except SpreadsheetError as exc:
+                self._json(422, {"error": str(exc)})
+            except Exception:
+                self.log_error("Falha ao analisar os relatórios")
+                self._json(500, {"error": "Não foi possível analisar os arquivos selecionados."})
+            return
         upload = next(
             (part for part in message.iter_parts()
              if part.get_content_disposition() == "form-data" and part.get_param("name", header="content-disposition") == "arquivo"),
